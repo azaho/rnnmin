@@ -170,10 +170,10 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         hstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):
 
-            #print(self.fc_h2ah.weight.get_device())
+            print(self.fc_h2ah.weight.get_device())
             #print(self.fc_h2ah.bias.get_device())
-            #print(self.fc_x2ah.weight.get_device())
-            #print(self.fc_x2ah.bias.get_device())
+            print(self.fc_x2ah.weight.get_device())
+            print(self.fc_x2ah.bias.get_device())
 
             ah = ah + (dt/Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(input[:,t]))# ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
             #h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
