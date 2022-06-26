@@ -174,11 +174,11 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
 
             print(self.fc_h2ah.weight)
             #print(self.fc_h2ah.bias.get_device())
-            print(self.fc_x2ah.weight.get_device())
-            print(self.fc_x2ah.bias.get_device())
+            #rint(self.fc_x2ah.weight.get_device())
+            #print(self.fc_x2ah.bias.get_device())
 
-            print(self.fc_h2ah(h))
-            print(self.fc_x2ah(input[:,t]))
+            #print(self.fc_h2ah(h))
+            #print(self.fc_x2ah(input[:,t]))
 
             self.fc_h2ah.weight = self.fc_h2ah.weight.to(config.device)
             print(self.fc_h2ah.weight)
