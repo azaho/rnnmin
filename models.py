@@ -16,7 +16,7 @@ class Model(nn.Module):
             noise_amplitude = 0
         if noise is None:
             noise = noise_amplitude * torch.randn(self.get_noise_shape(input)).to(config.device)
-        return self._forward(input, noise)
+        return self._forward(input.to(config.device), noise)
 
     def _forward(self, input, noise):
         pass
@@ -160,13 +160,13 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         numtrials, numT, dim_input = input.shape# METHOD 2
         #dim_recurrent = self.fc_h2y.weight.size(1)# y = Wyh @ h + by, METHOD 1
         #dim_recurrent = self.fc_h2y.weight.shape[1]# y = Wyh @ h + by, METHOD 2
-        ah = self.ah0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
+        ah = self.ah0.repeat(numtrials, 1).to(config.device)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
         #if self.LEARN_ah0:
         #    ah = self.ah0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
         #else:
         #    ah = input.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
         #h = self.nonlinearity(ah)# h0
-        h = computef(ah, self.nonlinearity)# h0, this implementation doesn't add noise to h0
+        h = computef(ah, self.nonlinearity).to(config.device)# h0, this implementation doesn't add noise to h0
         hstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):
             ah = ah + (dt/Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(input[:,t]))# ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
