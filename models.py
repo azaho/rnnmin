@@ -130,7 +130,7 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         self.fc_x2ah.bias = torch.nn.Parameter(torch.squeeze(bah)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         self.fc_h2y.bias = torch.nn.Parameter(torch.squeeze(by)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         self.fc_x2ah.weight = torch.nn.Parameter(Wahx).to(config.device)# Wahx @ x + bah
-        self.fc_h2ah.weight = torch.nn.Parameter(Wahh).to(config.device)# Wahh @ h
+        self.fc_h2ah.weight = torch.nn.Parameter(Wahh.to(config.device)).to(config.device)# Wahh @ h
         self.fc_h2y.weight = torch.nn.Parameter(Wyh).to(config.device)# y = Wyh @ h + by
         self.ah0 = torch.nn.Parameter(ah0, requires_grad=LEARN_ah0).to(config.device)# (dim_recurrent,) tensor
         if LEARN_ah0:
@@ -170,10 +170,10 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         hstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):
 
-            print(self.fc_h2ah.weight.get_device())
+            #print(self.fc_h2ah.weight.get_device())
             #print(self.fc_h2ah.bias.get_device())
-            print(self.fc_x2ah.weight.get_device())
-            print(self.fc_x2ah.bias.get_device())
+            #print(self.fc_x2ah.weight.get_device())
+            #print(self.fc_x2ah.bias.get_device())
 
             ah = ah + (dt/Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(input[:,t]))# ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
             #h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
