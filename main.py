@@ -76,8 +76,8 @@ Simply train on one task and plot
 """
 
 print(f"Using {config.device}")
-task = tasks.CARDS_WITH_CUES(n_cards=20, hold_card_for=3, wait_period=5, ask_card_for=3)
-model = models.CTRNN(task=task, dim_recurrent=1000)
+task = tasks.CARDS_WITH_CUES(n_cards=10, hold_card_for=3, wait_period=5, ask_card_for=3)
+model = models.CTRNN(task=task, dim_recurrent=100)
 
 plots.plot_eigenvalues(model, "Eigenvalues before training", "data/CARDS4/eig_before.pdf")
 
