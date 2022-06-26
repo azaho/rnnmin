@@ -83,7 +83,7 @@ plots.plot_eigenvalues(model, "Eigenvalues before training", "data/CARDS4/eig_be
 
 result = networks.train_network(model, task, max_steps=100000,
                                                           dir_save_parameters="data/CARDS4/parameters/",
-                                                          evaluate_plateau_every=500б
+                                                          evaluate_plateau_every=500,
                                                         batch_size=128)
 error_store = result["error_store"]
 
