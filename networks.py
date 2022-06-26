@@ -15,7 +15,7 @@ def lr_multiplier(lr_step):
 
 # outputs: error_store, gradient_norm_store
 def train_network(model, task, max_steps, batch_size=64,
-                  optimizer="Adam", learning_rate=1e-3,
+                  optimizer="Adam", learning_rate=1e-2,
                   add_noise=False, noise_amplitude=0.1,
                   clip_gradients=False, max_gradient_norm=10,
                   set_note_parameters=None, set_save_parameters=None,
@@ -27,7 +27,7 @@ def train_network(model, task, max_steps, batch_size=64,
                   plateau_tolerance=0.01,  # has to be within plateau_tolerance of last error
                   start_evaluating_plateau_after=1000,
                   lr_step_at_plateau=True,  # change learning rate when plateau reached
-                  lr_max_steps=4,  # only do so many learning rate changes
+                  lr_max_steps=10,  # only do so many learning rate changes
                   lr_step_multiplier_function=lr_multiplier,  # function to change learning rate
                   start_at_best_network_after_lr_step=True,
                   stop_at_last_plateau=True):  # stop after final learning rate step if plateau reached again
