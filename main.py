@@ -1,8 +1,8 @@
+import config
 import models
 import tasks
 import networks
 import plots
-import config
 
 
 MIN_ACCEPTABLE_ACCURACY = 1.0

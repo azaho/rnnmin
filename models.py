@@ -107,11 +107,11 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         # initialize the biases bah and by
 
         if ah0 is None:
-            ah0 = torch.zeros(dim_recurrent)
+            ah0 = torch.zeros(dim_recurrent).to(config.device)
         if bah is None:
-            bah = torch.zeros(dim_recurrent)
+            bah = torch.zeros(dim_recurrent).to(config.device)
         if by is None:
-            by = torch.zeros(dim_output)
+            by = torch.zeros(dim_output).to(config.device)
         if Wahh is None:
             # Saxe at al. 2014 "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks"
             # We empirically show that if we choose the initial weights in each layer to be a random orthogonal matrix (satisifying W'*W = I), instead of a scaled random Gaussian matrix, then this orthogonal random initialization condition yields depth independent learning times just like greedy layerwise pre-training.
@@ -119,13 +119,13 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
             Wahh = np.random.randn(dim_recurrent, dim_recurrent)
             u, s, vT = np.linalg.svd(Wahh)  # np.linalg.svd returns v transpose!
             Wahh = u @ np.diag(1.0 * np.ones(dim_recurrent)) @ vT  # make the eigenvalues large so they decay slowly
-            Wahh = torch.tensor(Wahh, dtype=torch.float32)
+            Wahh = torch.tensor(Wahh, dtype=torch.float32).to(config.device)
         if Wahx is None:
             # Sussillo et al. 2015 "A neural network that finds a naturalistic solution for the production of muscle activity"
-            Wahx = torch.randn(dim_recurrent, dim_input) / np.sqrt(dim_input)
+            Wahx = torch.randn(dim_recurrent, dim_input).to(config.device) / np.sqrt(dim_input)
         if Wyh is None:
             # Wahh = 1.5 * torch.randn(dim_recurrent,dim_recurrent) / np.sqrt(dim_recurrent); initname = '_initWahhsussillo'
-            Wyh = torch.zeros(dim_output, dim_recurrent)
+            Wyh = torch.zeros(dim_output, dim_recurrent).to(config.device)
 
         self.fc_x2ah.bias = torch.nn.Parameter(torch.squeeze(bah)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         self.fc_h2y.bias = torch.nn.Parameter(torch.squeeze(by)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
@@ -169,9 +169,6 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         h = computef(ah, self.nonlinearity)# h0, this implementation doesn't add noise to h0
         hstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):
-            print(ah.get_device())
-            print(h.get_device())
-            print(input[:,t].get_device())
             ah = ah + (dt/Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(input[:,t]))# ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
             #h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
             h = computef(ah, self.nonlinearity)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
