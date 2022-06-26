@@ -330,7 +330,7 @@ def computef(IN,string,*args):# ags[0] is the slope for string='tanhwithslope'
         F = torch.clamp(IN, min=-1, max=1)
         return F
     elif string == 'retanh':# rectified tanh
-        F = torch.maximum(torch.tanh(IN),torch.tensor(0))
+        F = torch.maximum(torch.tanh(IN),torch.tensor(0).to(config.device))
         return F
     elif string == 'binarymeanzero':# binary units with output values -1 and +1
         #F = (IN>=0) - (IN<0)# matlab code
