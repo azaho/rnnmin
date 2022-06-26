@@ -75,6 +75,7 @@ if __name__=="__main__":
 Simply train on one task and plot
 """
 
+print(f"Using {config.device}")
 task = tasks.CARDS_WITH_CUES(n_cards=5, hold_card_for=3, wait_period=5, ask_card_for=3)
 model = models.CTRNN(task=task, dim_recurrent=20).to(config.device)
 

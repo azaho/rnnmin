@@ -143,6 +143,8 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         #self.nonlinearity = lambda x: f(x, nonlinearity)
         self.nonlinearity = nonlinearity
 
+        self.to(config.device)
+
     def get_noise_shape(self, input):
         return (input.shape[0], input.shape[1], self.dim_recurrent)
 
