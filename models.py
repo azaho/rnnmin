@@ -136,6 +136,8 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         if LEARN_ah0:
             self.num_parameters = self.num_parameters + dim_recurrent# number of learned parameters in model
 
+        self.fc_h2ah = self.fc_h2ah.to(config.device)
+
         #------------------------------
         # set the nonlinearity for h 
         # pytorch seems to have difficulty saving the model architecture when using lambda functions
