@@ -169,6 +169,9 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         h = computef(ah, self.nonlinearity)# h0, this implementation doesn't add noise to h0
         hstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):
+            print(ah.get_device())
+            print(h.get_device())
+            print(input[:,t].get_device())
             ah = ah + (dt/Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(input[:,t]))# ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
             #h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
             h = computef(ah, self.nonlinearity)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
