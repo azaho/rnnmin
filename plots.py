@@ -12,8 +12,8 @@ def plot_eigenvalues(model, title, path):
 
     modelname = model.name
     W = None
-    if modelname == 'Elman RNN': W = model.fc_h2h.cpu().weight.detach().numpy();
-    if modelname == 'CTRNN': W = model.fc_h2ah.cpu().weight.detach().numpy();
+    if modelname == 'Elman RNN': W = model.fc_h2h.weight.detach().cpu().numpy();
+    if modelname == 'CTRNN': W = model.fc_h2ah.weight.detach().cpu().numpy();
     assert(W is not None), f"{modelname} is not supported in plot_eigenvalues (plots.py)"
     eigVal = np.linalg.eigvals(W)
 
