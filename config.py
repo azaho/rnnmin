@@ -8,7 +8,7 @@ np.random.seed(randseed)
 torch.manual_seed(randseed)
 
 dir = r'/Users/andrewzahorodnii/rnn/'  # use r'path with spaces' if there are spaces in the path name
-device = ("cuda" if torch.cuda.is_available() else "cpu")
+device = (torch.device("cuda:0") if torch.cuda.is_available() else "cpu")
 if torch.cuda.is_available():
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 #TODO: figure out where to put .to(DEVICE)
