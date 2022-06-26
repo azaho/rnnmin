@@ -171,7 +171,7 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         for t in range(numT):
 
             print(self.fc_h2ah.weight.get_device())
-            print(self.fc_h2ah.bias.get_device())
+            #print(self.fc_h2ah.bias.get_device())
             print(self.fc_x2ah.weight.get_device())
             print(self.fc_x2ah.bias.get_device())
 
