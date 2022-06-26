@@ -76,14 +76,15 @@ Simply train on one task and plot
 """
 
 print(f"Using {config.device}")
-task = tasks.CARDS_WITH_CUES(n_cards=5, hold_card_for=3, wait_period=5, ask_card_for=3)
-model = models.CTRNN(task=task, dim_recurrent=10)
+task = tasks.CARDS_WITH_CUES(n_cards=20, hold_card_for=3, wait_period=5, ask_card_for=3)
+model = models.CTRNN(task=task, dim_recurrent=500)
 
 plots.plot_eigenvalues(model, "Eigenvalues before training", "data/CARDS4/eig_before.pdf")
 
 result = networks.train_network(model, task, max_steps=100000,
                                                           dir_save_parameters="data/CARDS4/parameters/",
-                                                          evaluate_plateau_every=500)
+                                                          evaluate_plateau_every=500б
+                                                        batch_size=128)
 error_store = result["error_store"]
 
 plots.plot_eigenvalues(model, "Eigenvalues after training", "data/CARDS4/eig_after.pdf")
