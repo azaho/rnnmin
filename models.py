@@ -97,9 +97,9 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
 
         #dim_recurrent, dim_input = Wahx.shape# dim_recurrent x dim_input tensor
         #dim_output = Wyh.shape[0]# dim_output x dim_recurrent tensor  
-        self.fc_x2ah = nn.Linear(dim_input, dim_recurrent)# Wahx @ x + bah
-        self.fc_h2ah = nn.Linear(dim_recurrent, dim_recurrent, bias = False)# Wahh @ h
-        self.fc_h2y = nn.Linear(dim_recurrent, dim_output)# y = Wyh @ h + by
+        self.fc_x2ah = nn.Linear(dim_input, dim_recurrent).to(config.device)# Wahx @ x + bah
+        self.fc_h2ah = nn.Linear(dim_recurrent, dim_recurrent, bias = False).to(config.device)# Wahh @ h
+        self.fc_h2y = nn.Linear(dim_recurrent, dim_output).to(config.device)# y = Wyh @ h + by
         self.num_parameters = dim_recurrent ** 2 + dim_recurrent * dim_input + dim_recurrent + dim_output * dim_recurrent + dim_output# number of learned parameters in model
         self.dt = dt
         self.Tau = Tau
@@ -127,12 +127,12 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
             # Wahh = 1.5 * torch.randn(dim_recurrent,dim_recurrent) / np.sqrt(dim_recurrent); initname = '_initWahhsussillo'
             Wyh = torch.zeros(dim_output, dim_recurrent)
 
-        self.fc_x2ah.bias = torch.nn.Parameter(torch.squeeze(bah))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
-        self.fc_h2y.bias = torch.nn.Parameter(torch.squeeze(by))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
-        self.fc_x2ah.weight = torch.nn.Parameter(Wahx)# Wahx @ x + bah
-        self.fc_h2ah.weight = torch.nn.Parameter(Wahh)# Wahh @ h
-        self.fc_h2y.weight = torch.nn.Parameter(Wyh)# y = Wyh @ h + by
-        self.ah0 = torch.nn.Parameter(ah0, requires_grad=LEARN_ah0)# (dim_recurrent,) tensor
+        self.fc_x2ah.bias = torch.nn.Parameter(torch.squeeze(bah)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
+        self.fc_h2y.bias = torch.nn.Parameter(torch.squeeze(by)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
+        self.fc_x2ah.weight = torch.nn.Parameter(Wahx).to(config.device)# Wahx @ x + bah
+        self.fc_h2ah.weight = torch.nn.Parameter(Wahh).to(config.device)# Wahh @ h
+        self.fc_h2y.weight = torch.nn.Parameter(Wyh).to(config.device)# y = Wyh @ h + by
+        self.ah0 = torch.nn.Parameter(ah0, requires_grad=LEARN_ah0).to(config.device)# (dim_recurrent,) tensor
         if LEARN_ah0:
             self.num_parameters = self.num_parameters + dim_recurrent# number of learned parameters in model
 
