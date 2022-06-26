@@ -132,7 +132,7 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         self.fc_x2ah.weight = torch.nn.Parameter(Wahx).to(config.device)# Wahx @ x + bah
         self.fc_h2ah.weight = torch.nn.Parameter(Wahh.to(config.device)).to(config.device)# Wahh @ h
 
-        print(self.fc_h2ah.weight)
+        print(self.fc_h2ah.weight.get_device())
 
         self.fc_h2y.weight = torch.nn.Parameter(Wyh).to(config.device)# y = Wyh @ h + by
         self.ah0 = torch.nn.Parameter(ah0, requires_grad=LEARN_ah0).to(config.device)# (dim_recurrent,) tensor
