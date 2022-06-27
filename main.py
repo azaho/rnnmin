@@ -22,7 +22,7 @@ start_time = time.time()
 
 task = tasks.CARDS_WITH_CUES(n_cards=10, hold_card_for=3, wait_period=5, ask_card_for=3)
 model = models.CTRNN(task=task, dim_recurrent=dim_recurrent)
-result = networks.train_network(model, task, max_steps=1000,
+result = networks.train_network(model, task, max_steps=100000,
                                 evaluate_plateau_every=500,
                                 batch_size=64,
                                 silent=True,
