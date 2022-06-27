@@ -153,7 +153,7 @@ def train_network(model, task, max_steps, batch_size=64,
 
     #TODO: output network with lowest error?
     result = {
-        "training_time": p,
+        "parameter_updates": p,
         "final_error": error.item(),
         "best_network_error": best_network_error,
         "best_network_dict": best_network_dict
@@ -171,3 +171,8 @@ def save_network(model, path):
     _path = pathlib.Path(path)
     _path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({'model_state_dict': model.state_dict()}, path)
+
+def save_network_dict(model_dict, path):
+    _path = pathlib.Path(path)
+    _path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({'model_state_dict': model_dict}, path)
