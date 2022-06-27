@@ -12,10 +12,10 @@ parser.add_argument('--dim_recurrent', type=int,
                     help='dim_recurrent')
 parser.add_argument('--index', type=int,
                     help='index of this trial')
+parser.add_argument("--verbose", action="store_true")
 args = parser.parse_args()
 dim_recurrent = args.dim_recurrent
 index = args.index
-
 
 
 start_time = time.time()
@@ -25,9 +25,9 @@ model = models.CTRNN(task=task, dim_recurrent=dim_recurrent)
 result = networks.train_network(model, task, max_steps=100000,
                                 evaluate_plateau_every=500,
                                 batch_size=64,
-                                silent=True,
+                                silent=not args.verbose,
                                 save_best_network=False,
-                                set_note_parameters=[],
+                                set_note_parameters=[] if not args.verbose else None,
                                 set_save_parameters=[])
 result["training_time"] = time.time() - start_time
 result["error_store"] = result["error_store"].tolist()
