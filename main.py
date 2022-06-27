@@ -22,7 +22,7 @@ start_time = time.time()
 
 task = tasks.CARDS_WITH_CUES(n_cards=10, hold_card_for=3, wait_period=5, ask_card_for=3)
 model = models.CTRNN(task=task, dim_recurrent=dim_recurrent)
-result = networks.train_network(model, task, max_steps=100000,
+result = networks.train_network(model, task, max_steps=30000,
                                 evaluate_plateau_every=500,
                                 batch_size=64,
                                 silent=not args.verbose,
@@ -36,7 +36,10 @@ steps = range(0, len(result["error_store"]), int(len(result["error_store"])/100)
 result["error_store"] = {step: result["error_store"][step] for step in steps}
 
 networks.save_network_dict(result["best_network_dict"], f"data/dim_recurrent{dim_recurrent}_index{index}.pth")
+model.load_state_dict(result["best_network_dict"])
 del result["best_network_dict"]
+
+result["final_accuracy"] = task.assess_accuracy(model, batch_size=512)
 
 with open(f"data/dim_recurrent{dim_recurrent}_index{index}.json", 'w', encoding='utf-8') as f:
     json.dump(result, f, ensure_ascii=False, indent=4)

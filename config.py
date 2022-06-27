@@ -2,8 +2,9 @@ import os
 import numpy as np  # https://stackoverflow.com/questions/11788950/importing-numpy-into-functions
 import torch
 import matplotlib.pyplot as plt
+import time
 
-randseed = 123 # set random seed for reproducible results
+randseed = int(time.time()) #123 # set random seed for reproducible results
 np.random.seed(randseed)
 torch.manual_seed(randseed)
 
