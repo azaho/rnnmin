@@ -11,14 +11,17 @@ class Model(nn.Module):
         super().__init__()
         self.name = name
 
-    def forward(self, input, noise=None, noise_amplitude=None):
+    def forward(self, input, noise=None, noise_amplitude=None, save_preactivations=False):
         if noise_amplitude is None:
             noise_amplitude = 0
         if noise is None:
             noise = noise_amplitude * torch.randn(self.get_noise_shape(input)).to(config.device)
-        return self._forward(input.to(config.device), noise)
+        if save_preactivations:
+            return self._forward(input.to(config.device), noise, save_preactivations=True)
+        else:
+            return self._forward(input.to(config.device), noise)
 
-    def _forward(self, input, noise):
+    def _forward(self, input, noise, save_preactivations=False):
         pass
 
     def get_noise_shape(self, input):
@@ -78,13 +81,17 @@ class CARDS_WITH_CLUES_DT_RNN(Model):
 # parameters to be learned: Wahh, Wahx, Wyh, bah, by, ah0(optional). In this implementation h[0] = f(ah[0]) with no noise added to h[0] except potentially through ah[0]
 # constants that are not learned: dt, Tau, bhneverlearn
 # Equation 1 from Miller & Fumarola 2012 "Mathematical Equivalence of Two Common Forms of Firing Rate Models of Neural Networks"
-class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
+class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
     def __init__(self, dim_recurrent, dim_input=None, dim_output=None,
                  Wahx=None, Wahh=None, Wyh=None, bah=None, by=None,
                  nonlinearity='retanh', ah0=None, LEARN_ah0=False,
                  dt=1, Tau=10, task=None,
-                 name="CTRNN"):
-        super().__init__(name=name)# super allows you to call methods of the superclass in your subclass
+                 name="CTRNN",
+
+                 _SCUFFED_NORMALIZE_OUTPUTS = False):
+        self._SCUFFED_NORMALIZE_OUTPUTS = _SCUFFED_NORMALIZE_OUTPUTS
+
+        super().__init__(name=name)  # super allows you to call methods of the superclass in your subclass
 
         if task is not None:
             if dim_input is None:
@@ -95,15 +102,15 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         self.dim_output = dim_output
         self.dim_recurrent = dim_recurrent
 
-        #dim_recurrent, dim_input = Wahx.shape# dim_recurrent x dim_input tensor
-        #dim_output = Wyh.shape[0]# dim_output x dim_recurrent tensor  
-        self.fc_x2ah = nn.Linear(dim_input, dim_recurrent).to(config.device)# Wahx @ x + bah
-        self.fc_h2ah = nn.Linear(dim_recurrent, dim_recurrent, bias = False).to(config.device)# Wahh @ h
-        self.fc_h2y = nn.Linear(dim_recurrent, dim_output).to(config.device)# y = Wyh @ h + by
-        self.num_parameters = dim_recurrent ** 2 + dim_recurrent * dim_input + dim_recurrent + dim_output * dim_recurrent + dim_output# number of learned parameters in model
+        # dim_recurrent, dim_input = Wahx.shape# dim_recurrent x dim_input tensor
+        # dim_output = Wyh.shape[0]# dim_output x dim_recurrent tensor
+        self.fc_x2ah = nn.Linear(dim_input, dim_recurrent).to(config.device)  # Wahx @ x + bah
+        self.fc_h2ah = nn.Linear(dim_recurrent, dim_recurrent, bias=False).to(config.device)  # Wahh @ h
+        self.fc_h2y = nn.Linear(dim_recurrent, dim_output).to(config.device)  # y = Wyh @ h + by
+        self.num_parameters = dim_recurrent ** 2 + dim_recurrent * dim_input + dim_recurrent + dim_output * dim_recurrent + dim_output  # number of learned parameters in model
         self.dt = dt
         self.Tau = Tau
-        #------------------------------
+        # ------------------------------
         # initialize the biases bah and by
 
         if ah0 is None:
@@ -127,22 +134,24 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
             # Wahh = 1.5 * torch.randn(dim_recurrent,dim_recurrent) / np.sqrt(dim_recurrent); initname = '_initWahhsussillo'
             Wyh = torch.zeros(dim_output, dim_recurrent).to(config.device)
 
-        self.fc_x2ah.bias = torch.nn.Parameter(torch.squeeze(bah)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
-        self.fc_h2y.bias = torch.nn.Parameter(torch.squeeze(by)).to(config.device)# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
-        self.fc_x2ah.weight = torch.nn.Parameter(Wahx).to(config.device)# Wahx @ x + bah
-        self.fc_h2ah.weight = torch.nn.Parameter(Wahh).to(config.device)# Wahh @ h
-        self.fc_h2y.weight = torch.nn.Parameter(Wyh).to(config.device)# y = Wyh @ h + by
-        self.ah0 = torch.nn.Parameter(ah0, requires_grad=LEARN_ah0).to(config.device)# (dim_recurrent,) tensor
+        self.fc_x2ah.bias = torch.nn.Parameter(torch.squeeze(bah)).to(
+            config.device)  # https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
+        self.fc_h2y.bias = torch.nn.Parameter(torch.squeeze(by)).to(
+            config.device)  # https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
+        self.fc_x2ah.weight = torch.nn.Parameter(Wahx).to(config.device)  # Wahx @ x + bah
+        self.fc_h2ah.weight = torch.nn.Parameter(Wahh).to(config.device)  # Wahh @ h
+        self.fc_h2y.weight = torch.nn.Parameter(Wyh).to(config.device)  # y = Wyh @ h + by
+        self.ah0 = torch.nn.Parameter(ah0, requires_grad=LEARN_ah0).to(config.device)  # (dim_recurrent,) tensor
         if LEARN_ah0:
-            self.num_parameters = self.num_parameters + dim_recurrent# number of learned parameters in model
+            self.num_parameters = self.num_parameters + dim_recurrent  # number of learned parameters in model
 
         self.fc_h2ah = self.fc_h2ah.to(config.device)
 
-        #------------------------------
+        # ------------------------------
         # set the nonlinearity for h 
         # pytorch seems to have difficulty saving the model architecture when using lambda functions
         # https://discuss.pytorch.org/t/beginner-should-relu-sigmoid-be-called-in-the-init-method/18689/3
-        #self.nonlinearity = lambda x: f(x, nonlinearity)
+        # self.nonlinearity = lambda x: f(x, nonlinearity)
         self.nonlinearity = nonlinearity
 
         self.to(config.device)
@@ -151,34 +160,245 @@ class CTRNN(Model):# class CTRNN inherits from class torch.nn.Module
         return (input.shape[0], input.shape[1], self.dim_recurrent)
 
     # output y for all numT timesteps   
-    def _forward(self, input, bhneverlearn):# nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-        if len(input.shape)==2:# if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
-            input = input[None,:,:]# (numtrials, numT, dim_input)
-            bhneverlearn = bhneverlearn[None,:,:]# (numtrials, numT, dim_recurrent)
-        
+    def _forward(self, input,
+                 bhneverlearn,
+                 save_preactivations=False,
+                 reset_units=None,
+                 reset_to="mean"):  # nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
+        if len(input.shape) == 2:  # if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
+            input = input[None, :, :]  # (numtrials, numT, dim_input)
+            bhneverlearn = bhneverlearn[None, :, :]  # (numtrials, numT, dim_recurrent)
+
         dt = self.dt
         Tau = self.Tau
-        #numtrials, numT, dim_input = input.size()# METHOD 1
-        numtrials, numT, dim_input = input.shape# METHOD 2
-        #dim_recurrent = self.fc_h2y.weight.size(1)# y = Wyh @ h + by, METHOD 1
-        #dim_recurrent = self.fc_h2y.weight.shape[1]# y = Wyh @ h + by, METHOD 2
-        ah = self.ah0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
-        #if self.LEARN_ah0:
+        # numtrials, numT, dim_input = input.size()# METHOD 1
+        numtrials, numT, dim_input = input.shape  # METHOD 2
+        # dim_recurrent = self.fc_h2y.weight.size(1)# y = Wyh @ h + by, METHOD 1
+        # dim_recurrent = self.fc_h2y.weight.shape[1]# y = Wyh @ h + by, METHOD 2
+        ah = self.ah0.repeat(numtrials,
+                             1)  # (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
+        # if self.LEARN_ah0:
         #    ah = self.ah0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
-        #else:
-        #    ah = input.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
-        #h = self.nonlinearity(ah)# h0
-        h = computef(ah, self.nonlinearity)# h0, this implementation doesn't add noise to h0
-        hstore = []# (numtrials, numT, dim_recurrent)
+        # else:
+        #    ah = input.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor.
+        # h = self.nonlinearity(ah)# h0
+        h = computef(ah, self.nonlinearity)  # h0, this implementation doesn't add noise to h0
+        hstore = []  # (numtrials, numT, dim_recurrent)
+        pastore = []
         for t in range(numT):
-            ah = ah + (dt/Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(input[:,t]))# ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
-            #h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
-            h = computef(ah, self.nonlinearity)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent) 
-            hstore.append(h)# hstore += [h]
-        hstore = torch.stack(hstore,dim=1)# (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions  
-        return self.fc_h2y(hstore), hstore# (numtrials, numT, dim_output/dim_recurrent) tensor, y = Wyh @ h + by
- 
+            ah = ah + (dt / Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(
+                input[:, t]))  # ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
+            # h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent)
 
+            if reset_units is not None:
+                if reset_to == "mean":
+                    ah[:, reset_units[t] == 1] = torch.mean(ah[:, reset_units[t] == 1], dim=1).reshape(-1, 1).repeat(1, torch.sum(reset_units[t]))
+                else:
+                    ah[:, reset_units[t] == 1] = reset_to
+
+            pastore.append(ah)
+            h = computef(ah, self.nonlinearity) + bhneverlearn[:, t, :]  # bhneverlearn has shape (numtrials, numT, dim_recurrent)
+            hstore.append(h)  # hstore += [h]
+        hstore = torch.stack(hstore,
+                             dim=1)  # (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions
+        pastore = torch.stack(pastore, dim=1)
+
+        output = self.fc_h2y(hstore)
+
+        r1 = torch.sqrt(output[:, :, 0]*output[:, :, 0]+output[:, :, 1]*output[:, :, 1])+0.0001
+        r2 = torch.sqrt(output[:, :, 2]*output[:, :, 2]+output[:, :, 3]*output[:, :, 3])+0.0001
+        div = torch.cat((r1.unsqueeze(-1), r1.unsqueeze(-1), r2.unsqueeze(-1), r2.unsqueeze(-1)), dim=2)
+
+        #print(torch.any(torch.isnan(output)))
+        #print(torch.any(torch.isnan(input)), torch.any(torch.isnan(output)), torch.any(torch.isnan(output/div)))
+        #exit()
+        #print(output)
+        if self._SCUFFED_NORMALIZE_OUTPUTS:
+            output_r = output / div
+        else:
+            output_r = output
+        #print(.shape)
+        #exit()
+
+        if save_preactivations:
+            return output_r, hstore, pastore  # (numtrials, numT, dim_output/dim_recurrent) tensor, y = Wyh @ h + by
+        else:
+            return output_r, hstore  # (numtrials, numT, dim_output/dim_recurrent) tensor, y = Wyh @ h + by
+
+
+'''    
+# A note on broadcasting:
+# multiplying a (N,) array by a (M,N) matrix with * will broadcast element-wise
+torch.manual_seed(123)# set random seed for reproducible results  
+numtrials = 2  
+Tau = torch.randn(5); Tau[-1] = 10
+ah = torch.randn(numtrials,5)
+A = ah + 1/Tau * (-ah)
+A_check = -700*torch.ones(numtrials,5)
+for i in range(numtrials):
+    A_check[i,:] = ah[i,:] + 1/Tau * (-ah[i,:])# * performs elementwise multiplication
+print(f"Do A and A_check have the same shape and are element-wise equal within a tolerance? {A.shape == A_check.shape and np.allclose(A, A_check)}")
+'''
+
+
+class LOWRANK_CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
+    class _recurrent_connections_old(nn.Module):
+        def __init__(self, dim_recurrent, rank):
+            super().__init__()
+            self.dim_recurrent = dim_recurrent
+            self.rank = rank
+            self.M = nn.ParameterList([nn.Parameter(torch.randn((dim_recurrent, 1))) for i in range(rank)]).to(config.device)
+            self.N = nn.ParameterList([nn.Parameter(torch.randn((dim_recurrent, 1))) for i in range(rank)]).to(config.device)
+
+        def forward(self, x):
+            res = x.T * 0
+            for i in range(self.rank):
+                #print(self.M[i].shape)
+                #print(self.N[i].T.shape)
+                #print(x.T.shape)
+                #print((self.M[i] @ self.N[i].T).shape)
+                res += (self.M[i] @ self.N[i].T) @ x.T
+            return res.T
+
+    class _recurrent_connections(nn.Module):
+        def __init__(self, dim_recurrent, rank):
+            super().__init__()
+            self.dim_recurrent = dim_recurrent
+            self.rank = rank
+
+            # Saxe at al. 2014 "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks"
+            # We empirically show that if we choose the initial weights in each layer to be a random orthogonal matrix (satisifying W'*W = I), instead of a scaled random Gaussian matrix, then this orthogonal random initialization condition yields depth independent learning times just like greedy layerwise pre-training.
+            # [u,s,v] = svd(A); A = u*s*v’; columns of u are eigenvectors of covariance matrix A*A’; rows of v’ are eigenvectors of covariance matrix A’*A; s is a diagonal matrix that has elements = sqrt(eigenvalues of A’*A and A*A’)
+            Wahh = np.random.randn(dim_recurrent, dim_recurrent)
+            u, s, vT = np.linalg.svd(Wahh)  # np.linalg.svd returns v transpose!
+            Wahh = u @ np.diag(1.0 * np.ones(dim_recurrent)) @ vT  # make the eigenvalues large so they decay slowly
+            Wahh = torch.tensor(Wahh, dtype=torch.float32).to(config.device)
+
+            self.M = torch.tensor(u[:, :rank], dtype=torch.float32)
+            self.N = torch.tensor((vT.T)[:, :rank], dtype=torch.float32)
+            self.M = nn.Parameter(self.M).to(config.device)
+            self.N = nn.Parameter(self.N).to(config.device)
+            # self.M = nn.Parameter(torch.randn((dim_recurrent, rank))).to(config.device)
+            # self.N = nn.Parameter(torch.randn((dim_recurrent, rank))).to(config.device)
+
+        def forward(self, x):
+            #return (self.M @ x.T).T
+            return (self.M @ self.N.T @ x.T).T
+
+    def __init__(self, dim_recurrent, dim_input=None, dim_output=None,
+                 Wahx=None, Wahh=None, Wyh=None, bah=None, by=None,
+                 nonlinearity='retanh', ah0=None, LEARN_ah0=False,
+                 dt=1, Tau=10, task=None,
+                 name="LRCTRNN", rank=3):
+        super().__init__(name=name)  # super allows you to call methods of the superclass in your subclass
+        self.name = name + str(rank)
+
+        if task is not None:
+            if dim_input is None:
+                dim_input = task.dim_input
+            if dim_output is None:
+                dim_output = task.dim_output
+        self.dim_input = dim_input
+        self.dim_output = dim_output
+        self.dim_recurrent = dim_recurrent
+        self.rank = rank
+
+        # dim_recurrent, dim_input = Wahx.shape# dim_recurrent x dim_input tensor
+        # dim_output = Wyh.shape[0]# dim_output x dim_recurrent tensor
+        self.fc_x2ah = nn.Linear(dim_input, dim_recurrent).to(config.device)  # Wahx @ x + bah
+        self.fc_h2ah = self._recurrent_connections(dim_recurrent, rank).to(config.device)  # Wahh @ h
+        self.fc_h2y = nn.Linear(dim_recurrent, dim_output).to(config.device)  # y = Wyh @ h + by
+        self.num_parameters = dim_recurrent ** 2 + dim_recurrent * dim_input + dim_recurrent + dim_output * dim_recurrent + dim_output  # number of learned parameters in model
+        self.dt = dt
+        self.Tau = Tau
+        # ------------------------------
+        # initialize the biases bah and by
+
+        if ah0 is None:
+            ah0 = torch.zeros(dim_recurrent).to(config.device)
+        if bah is None:
+            bah = torch.zeros(dim_recurrent).to(config.device)
+        if by is None:
+            by = torch.zeros(dim_output).to(config.device)
+        if Wahh is None:
+            # Saxe at al. 2014 "Exact solutions to the nonlinear dynamics of learning in deep linear neural networks"
+            # We empirically show that if we choose the initial weights in each layer to be a random orthogonal matrix (satisifying W'*W = I), instead of a scaled random Gaussian matrix, then this orthogonal random initialization condition yields depth independent learning times just like greedy layerwise pre-training.
+            # [u,s,v] = svd(A); A = u*s*v’; columns of u are eigenvectors of covariance matrix A*A’; rows of v’ are eigenvectors of covariance matrix A’*A; s is a diagonal matrix that has elements = sqrt(eigenvalues of A’*A and A*A’)
+            Wahh = np.random.randn(dim_recurrent, dim_recurrent)
+            u, s, vT = np.linalg.svd(Wahh)  # np.linalg.svd returns v transpose!
+            Wahh = u @ np.diag(1.0 * np.ones(dim_recurrent)) @ vT  # make the eigenvalues large so they decay slowly
+            Wahh = torch.tensor(Wahh, dtype=torch.float32).to(config.device)
+        if Wahx is None:
+            # Sussillo et al. 2015 "A neural network that finds a naturalistic solution for the production of muscle activity"
+            Wahx = torch.randn(dim_recurrent, dim_input).to(config.device) / np.sqrt(dim_input)
+        if Wyh is None:
+            # Wahh = 1.5 * torch.randn(dim_recurrent,dim_recurrent) / np.sqrt(dim_recurrent); initname = '_initWahhsussillo'
+            Wyh = torch.zeros(dim_output, dim_recurrent).to(config.device)
+
+        self.fc_x2ah.bias = torch.nn.Parameter(torch.squeeze(bah)).to(
+            config.device)  # https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
+        self.fc_h2y.bias = torch.nn.Parameter(torch.squeeze(by)).to(
+            config.device)  # https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
+        self.fc_x2ah.weight = torch.nn.Parameter(Wahx).to(config.device)  # Wahx @ x + bah
+        #self.fc_h2ah.weight = torch.nn.Parameter(Wahh).to(config.device)  # Wahh @ h
+        self.fc_h2y.weight = torch.nn.Parameter(Wyh).to(config.device)  # y = Wyh @ h + by
+        self.ah0 = torch.nn.Parameter(ah0, requires_grad=LEARN_ah0).to(config.device)  # (dim_recurrent,) tensor
+        if LEARN_ah0:
+            self.num_parameters = self.num_parameters + dim_recurrent  # number of learned parameters in model
+
+        self.fc_h2ah = self.fc_h2ah.to(config.device)
+
+        # ------------------------------
+        # set the nonlinearity for h
+        # pytorch seems to have difficulty saving the model architecture when using lambda functions
+        # https://discuss.pytorch.org/t/beginner-should-relu-sigmoid-be-called-in-the-init-method/18689/3
+        # self.nonlinearity = lambda x: f(x, nonlinearity)
+        self.nonlinearity = nonlinearity
+
+        self.to(config.device)
+
+    def get_noise_shape(self, input):
+        return (input.shape[0], input.shape[1], self.dim_recurrent)
+
+    # output y for all numT timesteps
+    def _forward(self, input,
+                 bhneverlearn,
+                 save_preactivations=False):  # nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
+        if len(input.shape) == 2:  # if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
+            input = input[None, :, :]  # (numtrials, numT, dim_input)
+            bhneverlearn = bhneverlearn[None, :, :]  # (numtrials, numT, dim_recurrent)
+
+        dt = self.dt
+        Tau = self.Tau
+        # numtrials, numT, dim_input = input.size()# METHOD 1
+        numtrials, numT, dim_input = input.shape  # METHOD 2
+        # dim_recurrent = self.fc_h2y.weight.size(1)# y = Wyh @ h + by, METHOD 1
+        # dim_recurrent = self.fc_h2y.weight.shape[1]# y = Wyh @ h + by, METHOD 2
+        ah = self.ah0.repeat(numtrials,
+                             1)  # (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
+        # if self.LEARN_ah0:
+        #    ah = self.ah0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
+        # else:
+        #    ah = input.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor.
+        # h = self.nonlinearity(ah)# h0
+        h = computef(ah, self.nonlinearity)  # h0, this implementation doesn't add noise to h0
+        hstore = []  # (numtrials, numT, dim_recurrent)
+        pastore = []
+        for t in range(numT):
+            ah = ah + (dt / Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(
+                input[:, t]))  # ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
+            # h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent)
+            pastore.append(ah)
+            h = computef(ah, self.nonlinearity) + bhneverlearn[:, t,
+                                                  :]  # bhneverlearn has shape (numtrials, numT, dim_recurrent)
+            hstore.append(h)  # hstore += [h]
+        hstore = torch.stack(hstore,
+                             dim=1)  # (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions
+        pastore = torch.stack(pastore, dim=1)
+        if save_preactivations:
+            return self.fc_h2y(hstore), hstore, pastore  # (numtrials, numT, dim_output/dim_recurrent) tensor, y = Wyh @ h + by
+        else:
+            return self.fc_h2y(hstore), hstore  # (numtrials, numT, dim_output/dim_recurrent) tensor, y = Wyh @ h + by
 
 
 '''    
@@ -327,6 +547,9 @@ def computef(IN,string,*args):# ags[0] is the slope for string='tanhwithslope'
         return F
     elif string == 'retanh':# rectified tanh
         F = torch.maximum(torch.tanh(IN),torch.tensor(0).to(config.device))
+        return F
+    elif string == 'retanh2':# rectified tanh
+        F = torch.maximum(torch.tanh(IN*2),torch.tensor(0).to(config.device))
         return F
     elif string == 'binarymeanzero':# binary units with output values -1 and +1
         #F = (IN>=0) - (IN<0)# matlab code

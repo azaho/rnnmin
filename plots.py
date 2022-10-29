@@ -4,6 +4,7 @@ import numpy as np  # https://stackoverflow.com/questions/11788950/importing-num
 import torch
 import matplotlib.pyplot as plt
 import pathlib
+import re
 
 
 def plot_eigenvalues(model, title, path):
@@ -12,8 +13,9 @@ def plot_eigenvalues(model, title, path):
 
     modelname = model.name
     W = None
-    if modelname == 'Elman RNN': W = model.fc_h2h.weight.detach().cpu().numpy();
-    if modelname == 'CTRNN': W = model.fc_h2ah.weight.detach().cpu().numpy();
+    if modelname == 'Elman RNN': W = model.fc_h2h.weight.detach().cpu().numpy()
+    if modelname == 'CTRNN': W = model.fc_h2ah.weight.detach().cpu().numpy()
+    if modelname == 'LOWRANK_CTRNN': W = (model.fc_h2ah.M @ model.fc_h2ah.N.T).detach()
     assert(W is not None), f"{modelname} is not supported in plot_eigenvalues (plots.py)"
     eigVal = np.linalg.eigvals(W)
 
@@ -24,6 +26,19 @@ def plot_eigenvalues(model, title, path):
     plt.title(f'{title}')
     plt.axis('equal')  # plt.axis('scaled')
     plt.savefig(path, bbox_inches='tight')  # add bbox_inches='tight' to keep title from being cutoff
+
+
+def svd(model):
+    modelname = model.name
+    W = None
+    if modelname == 'Elman RNN': W = model.fc_h2h.weight.detach()
+    if modelname == 'CTRNN': W = model.fc_h2ah.weight.detach()
+    if re.sub(r'[^a-zA-Z]', '', modelname) == 'LRCTRNN': W = (model.fc_h2ah.M @ model.fc_h2ah.N.T).detach()
+    assert(W is not None), f"{modelname} is not supported in svd (plots.py)"
+
+    U, S, V = torch.svd(W, some=False)
+    return U, S, V
+
 
 
 def plot_trainingerror(model, error_store, title, path,

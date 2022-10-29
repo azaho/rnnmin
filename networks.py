@@ -15,7 +15,7 @@ def lr_multiplier(lr_step):
 
 # outputs: error_store, gradient_norm_store
 def train_network(model, task, max_steps, batch_size=64,
-                  optimizer="Adam", learning_rate=1e-2,
+                  optimizer="Adam", learning_rate=1e-3,
                   add_noise=False, noise_amplitude=0.1,
                   clip_gradients=False, max_gradient_norm=10,
                   set_note_parameters=None, set_save_parameters=None,
@@ -30,7 +30,9 @@ def train_network(model, task, max_steps, batch_size=64,
                   lr_max_steps=5,  # only do so many learning rate changes
                   lr_step_multiplier_function=lr_multiplier,  # function to change learning rate
                   start_at_best_network_after_lr_step=True,
-                  stop_at_last_plateau=True):  # stop after final learning rate step if plateau reached again
+                  stop_at_last_plateau=True,
+                  regularization_lambda=0.1,
+                  regularization_norm=None):  # stop after final learning rate step if plateau reached again
     if optimizer == "Adam": optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # lr = 1e-3 default
     assert (type(optimizer) is not str), f"{optimizer} is not supported by train_network (train.py)"
 
@@ -42,7 +44,7 @@ def train_network(model, task, max_steps, batch_size=64,
     # gradient_norm[j] is the norm of the gradient after j parameter updates
 
     if set_note_parameters is None:
-        num_partitions = max(20, int(max_steps/500))
+        num_partitions = max(20, int(max_steps/200))
         set_note_parameters = np.unique(np.concatenate(
             (np.arange(0, min(6, max_steps)), np.round(np.linspace(0, max_steps, num=num_partitions, endpoint=True))))).astype(int)
     if set_save_parameters is None:
@@ -75,6 +77,12 @@ def train_network(model, task, max_steps, batch_size=64,
         # TODO: add criterion
         error = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2) / torch.sum(
             output_mask == 1)
+        if regularization_norm == 1:
+            for param in model.parameters():
+                error += regularization_lambda * torch.sum(torch.abs(param))
+        if regularization_norm == 2:
+            for param in model.parameters():
+                error += regularization_lambda * torch.sum(param ** 2)
         # output_mask: batch_size x numT x dim_output tensor, elements
         # 0(timepoint does not contribute to this term in the error function),
         # 1(timepoint contributes to this term in the error function)
@@ -118,7 +126,8 @@ def train_network(model, task, max_steps, batch_size=64,
 
         if np.isin(p, set_note_parameters):
             if not silent:
-                print(f'{p} parameter updates: error = {error.item():.4g}')
+                error_wo_reg = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2) / torch.sum(output_mask == 1)
+                print(f'{p} parameter updates: error = {error.item():.4g}, w/o reg {error_wo_reg.item():.4g}')
         if np.isin(p, set_save_parameters):
             save_network(model, dir_save_parameters + f'model_parameterupdate{p}.pth')
         if error.item() < best_network_error:
@@ -135,7 +144,7 @@ def train_network(model, task, max_steps, batch_size=64,
             if min_now/min_before > 1 - plateau_tolerance:
                 # reached plateau
                 if not silent:
-                    print(f'Reached plataeu at {p} steps ({min_now} vs {min_before})')
+                    print(f'Reached plateau {lr_step}/{lr_max_steps} at {p} steps ({min_now:.5f} vs {min_before:.5f})')
                 if lr_step == lr_max_steps and stop_at_last_plateau:
                     break
                 lr_step += 1
