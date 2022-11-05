@@ -11,6 +11,10 @@ import hashlib
 import numpy as np
 import torch
 
+"""
+python3 main.py --dim_recurrent 100 --index 0 --noise 0.1 --verbose --random OA --simple_input --simple_output --hold_zero
+"""
+
 parser = argparse.ArgumentParser(description='Train networks')
 parser.add_argument('--dim_recurrent', type=int,
                     help='dim_recurrent', default=49)
@@ -87,7 +91,7 @@ result = networks.train_network(model, task, max_steps=100000,
                                 dir_save_parameters="data/"+directory,
                                 lr_max_steps=7,
                                 lr_step_at_plateau=False,
-                                learning_rate=1e-4,
+                                learning_rate=1e-3,
                                 start_at_best_network_after_lr_step=True,
                                 start_evaluating_plateau_after=2000,
                                 add_noise=(noise>0),

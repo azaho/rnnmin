@@ -47,6 +47,35 @@ class TWO_ORIENTATIONS(Task):
         self.delay2_set = delay2_set
         self.name = "TWOORI"
 
+    # Ning Quan
+    def o_spikes(self, pref, stim, exponent, maxSpike, k):
+        # o_spikes: spike numbers per trial for orientation tuning cells
+        # r = o_spikes(pref, stim, exponent, k)
+        # pref: row vec for cells' preferred orientations
+        # stim: column vec for stimulus orientations
+        # exponent: scalar determining the widths of tuning. larger value for sharper tuning
+        # maxSpike: scalar for mean max spike number when pref = stim
+        # k: scalar for determining variance = k * mean
+        # spikes: different columuns for cells with different pref orintations
+        #         different rows for different stim orientations
+        np_ = pref.shape[0]  # number of elements in pref
+        ns = stim.shape[0]  # number of elements in stim
+
+        prefs = torch.ones((ns, 1)) @ pref[None, :]  # ns x np array, (ns x 1) @ (1 x np)
+        stims = stim[:, None] @ torch.ones((1, np_))  # ns x np array, (ns x 1) @ (1 x np)
+
+        # mean spike numbers
+        meanSpike = maxSpike * (0.5 * (torch.cos(2 * (prefs - stims)) + 1)) ** exponent  # ns x np array
+
+        # sigma for noise
+        sigmaSpike = torch.sqrt(k * meanSpike)
+
+        # spikes = normrnd(meanSpike, sigmaSpike)# ns x np array, matlab
+        spikes = torch.normal(meanSpike, sigmaSpike)  # ns x np array, python
+
+        # no negative spike numbers
+        spikes[spikes < 0] = 0  # ns x np array
+        return spikes
 
     def _orientation_representation(self, orientation, simple=False):
         # add 2 for go cue signals
@@ -56,11 +85,26 @@ class TWO_ORIENTATIONS(Task):
             rates[0] = math.sin(theta)
             rates[1] = math.cos(theta)
         else:
-            rates = torch.tensor(range(self.orientation_neurons)) * 180 / self.orientation_neurons
-            rates -= orientation
-            rates = torch.exp(-rates ** 2 / 28 / 28) - 0.2
-            rates = torch.maximum(rates, torch.zeros((self.orientation_neurons,)))
-            rates /= 0.8
+            if False:
+                rates = torch.tensor(range(self.orientation_neurons)) * 180 / self.orientation_neurons
+                rates -= orientation
+                rates = torch.exp(-rates ** 2 / 2 / 30 / 30) - 0.2
+                rates = torch.maximum(rates, torch.zeros((self.orientation_neurons,)))
+                rates /= 0.8
+            if False:
+                rates = torch.tensor(range(self.orientation_neurons)) * 180 / self.orientation_neurons
+                rates -= orientation
+                rates = torch.exp(-rates ** 2 / 2 / 25 / 25) - 0.2
+                rates *= 5
+                rates = torch.maximum(torch.tanh(rates), torch.tensor(0).to(config.device))
+                #rates /= 0.8
+            if True:
+                pref = math.pi * torch.arange(self.orientation_neurons) / self.orientation_neurons
+                stim = torch.tensor([(orientation / 180 * math.pi)], dtype=torch.float32)
+                exponent = 4
+                maxSpike = 1
+                k = 0
+                rates = self.o_spikes(pref, stim, exponent, maxSpike, k)[0]
         return rates
 
     def _input_rates(self, orientation, simple=False):

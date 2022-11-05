@@ -79,10 +79,12 @@ def train_network(model, task, max_steps, batch_size=64,
             output_mask == 1)
         if regularization_norm == 1:
             for param in model.parameters():
-                error += regularization_lambda * torch.sum(torch.abs(param))
+                if param.requires_grad is True:
+                    error += regularization_lambda * torch.sum(torch.abs(param))
         if regularization_norm == 2:
             for param in model.parameters():
-                error += regularization_lambda * torch.sum(param ** 2)
+                if param.requires_grad is True:
+                    error += regularization_lambda * torch.sum(param ** 2)
         # output_mask: batch_size x numT x dim_output tensor, elements
         # 0(timepoint does not contribute to this term in the error function),
         # 1(timepoint contributes to this term in the error function)
