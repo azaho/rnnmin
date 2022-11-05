@@ -283,7 +283,7 @@ def images_side_by_side(images, save_to=None, vert_pref=False, figsize=None, tit
         a.imshow(images[i])
     plt.tight_layout()
     if save_to is not None:
-        plt.savefig(save_to)
+        plt.savefig(save_to, bbox_inches='tight')
     if title is not None:
         st = fig.suptitle(title, fontsize=20)
         # st.set_y(0.95)
@@ -1207,7 +1207,7 @@ plt.ylabel('Overlap with last-timestep tuned units')
 plt.title(f'How similar are ring units to last-timestep ring units?')
 plt.legend()
 annotate_task_on_plt(plt)
-plt.savefig(make_saving_path("R1_similarity.pdf"))
+plt.savefig(make_saving_path("R1_similarity.pdf"), bbox_inches='tight')
 
 
 # ## PCA
@@ -1249,7 +1249,7 @@ plt.title(f"Explained variance in {activity_of} activity by PCA\n({t_from_d} to 
 plt.xlabel("component #")
 plt.ylabel("ratio of explained variance")
 plt.xticks(range(1, len(pca.explained_variance_ratio_)+1))
-plt.savefig(make_saving_path(f"pca_{activity_of}_{t_from}to{t_to}_explainedvariance.pdf"))
+plt.savefig(make_saving_path(f"pca_{activity_of}_{t_from}to{t_to}_explainedvariance.pdf"), bbox_inches='tight')
 
 arr_pca.shape
 res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
@@ -1387,7 +1387,7 @@ for a in range(t_from, t_to):
     ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
                  f"\n(t={get_title(a)})")
 
-    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png")
+    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
     if a % 10 == 0: print(f"{t}({(a-t_from)/(t_to-t_from)*100:.2f}%)", end=" ")
 os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
 
@@ -1422,7 +1422,7 @@ for a in range(t_from, t_to):
     ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
                  f"\n(t={get_title(a)})")
 
-    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png")
+    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
     if a % 10 == 0: print(f"{t}({(a-t_from)/(t_to-t_from)*100:.2f}%)", end=" ")
 os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
 

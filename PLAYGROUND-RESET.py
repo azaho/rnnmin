@@ -288,7 +288,7 @@ def images_side_by_side(images, save_to=None):
         a.imshow(images[i])
     plt.tight_layout()
     if save_to is not None:
-        plt.savefig(save_to)
+        plt.savefig(save_to, bbox_inches='tight')
     #plt.show()
     #st = fig.suptitle(f"Tuning to orientations {timestep_description}", fontsize=20)
     #st.set_y(0.95)
@@ -421,7 +421,7 @@ for t in range(start_from, go_to):
         print(f"{t}({(t-start_from)/(go_to-start_from)*100:.2f}%)", end=" ")
     if t % 50 == 0:
         print("") # for some reason printing shows only after \n has been printed
-    plt.savefig(f"{directory}/{index}/{dirname}/fig{t:03}.png")
+    plt.savefig(f"{directory}/{index}/{dirname}/fig{t:03}.png", bbox_inches='tight')
 os.system(f"ffmpeg -framerate 10 -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
 print("")
 
