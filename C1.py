@@ -1223,6 +1223,7 @@ R2_i = megabatch_tuningindices[-1][R2_starts_from_i:]
 R1_pref = torch.argmax(torch.sum(megabatch_tuningdata[-1][R1_i], dim=2), dim=1)*ORI_RES
 R2_pref = torch.argmax(torch.sum(megabatch_tuningdata[-1][R2_i], dim=1), dim=1)*ORI_RES
 
+######################### R1
 
 # In[293]:
 
@@ -1230,82 +1231,82 @@ R2_pref = torch.argmax(torch.sum(megabatch_tuningdata[-1][R2_i], dim=1), dim=1)*
 t_from, t_from_d = t1, t1d
 t_to, t_to_d = t5, t5d
 
-#timestep_from, timestep_to = 0, 300
+# timestep_from, timestep_to = 0, 300
 
 indices = torch.cat((R1_i,))
 activity_of = "R1"
-                    
+
 arr = megabatch_output[1].clone()[:, t_from:t_to, :].reshape(-1, dim_recurrent)
-#arr = arr[:, torch.cat((R1_i, DT_i))]#R2_indices[-1]]
-arr = arr[:, indices]#R2_indices[-1]]
+# arr = arr[:, torch.cat((R1_i, DT_i))]#R2_indices[-1]]
+arr = arr[:, indices]  # R2_indices[-1]]
 arr = arr.cpu().detach().numpy()
 
 pca = PCA(n_components=10, svd_solver='full')
 arr_pca = pca.fit_transform(arr)
 
 fig = plt.figure(figsize=(6, 3))
-plt.bar(range(1, len(pca.explained_variance_ratio_)+1), pca.explained_variance_ratio_)
+plt.bar(range(1, len(pca.explained_variance_ratio_) + 1), pca.explained_variance_ratio_)
 plt.title(f"Explained variance in {activity_of} activity by PCA\n({t_from_d} to {t_to_d})")
 plt.xlabel("component #")
 plt.ylabel("ratio of explained variance")
-plt.xticks(range(1, len(pca.explained_variance_ratio_)+1))
+plt.xticks(range(1, len(pca.explained_variance_ratio_) + 1))
 plt.savefig(make_saving_path(f"pca_{activity_of}_{t_from}to{t_to}_explainedvariance.pdf"), bbox_inches='tight')
 
 arr_pca.shape
-res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
-#res = res[:, :, :]
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+# res = res[:, :, :]
 c = [t for o1 in range(res.shape[0]) for o2 in range(res.shape[1]) for t in range(res.shape[2])]
 res = res.reshape(-1, 10)
 fig = plt.figure(figsize=(9, 9))
-#ax = fig.add_subplot()
+# ax = fig.add_subplot()
 ax = fig.add_subplot()
-#ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-#ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-#ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
 ax.scatter(res[:, 0], res[:, 1], c=c, s=1)
-#ax.set_xlim(-3, 3)
-#ax.set_ylim(-4.5, 5)
-#ax.legend()
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
 ax.set_xlabel("PC1")
 ax.set_ylabel("PC2")
 ax.set_title(f"PCA on {activity_of} activity, colored by timestep\n({t_from_d} to {t_to_d})")
 im1 = plt_to_image(fig)
 
 arr_pca.shape
-res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
 res = res[:, :, :]
 c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
 res = res.reshape(-1, 10)
 fig = plt.figure(figsize=(9, 9))
-#ax = fig.add_subplot()
+# ax = fig.add_subplot()
 ax = fig.add_subplot()
-#ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-#ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-#ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
 ax.scatter(res[:, 0], res[:, 1], c=c, s=1)
-#ax.set_xlim(-3, 3)
-#ax.set_ylim(-4.5, 5)
-#ax.legend()
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
 ax.set_xlabel("PC1")
 ax.set_ylabel("PC2")
 ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n({t_from_d} to {t_to_d})")
 im2 = plt_to_image(fig)
 
 arr_pca.shape
-res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
 res = res[:, :, :]
 c = [t for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
 res = res.reshape(-1, 10)
 fig = plt.figure(figsize=(9, 9))
-#ax = fig.add_subplot()
+# ax = fig.add_subplot()
 ax = fig.add_subplot(projection='3d')
-#ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-#ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-#ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
 ax.scatter(res[:, 2], res[:, 0], res[:, 1], c=c, s=1)
-#ax.set_xlim(-3, 3)
-#ax.set_ylim(-4.5, 5)
-#ax.legend()
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
 ax.set_xlabel("PC3")
 ax.set_ylabel("PC1")
 ax.set_zlabel("PC2")
@@ -1313,20 +1314,20 @@ ax.set_title(f"PCA on {activity_of} activity, colored by timestep\n({t_from_d} t
 im3 = plt_to_image(fig)
 
 arr_pca.shape
-res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
 res = res[:, :, :]
 c = [o1 for o1 in range(res.shape[0]) for o2 in range(res.shape[1]) for t in range(res.shape[2])]
 res = res.reshape(-1, 10)
 fig = plt.figure(figsize=(9, 9))
-#ax = fig.add_subplot()
+# ax = fig.add_subplot()
 ax = fig.add_subplot(projection='3d')
-#ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-#ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-#ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
 ax.scatter(res[:, 2], res[:, 0], res[:, 1], c=c, s=1)
-#ax.set_xlim(-3, 3)
-#ax.set_ylim(-4.5, 5)
-#ax.legend()
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
 ax.set_xlabel("PC3")
 ax.set_ylabel("PC1")
 ax.set_zlabel("PC2")
@@ -1342,15 +1343,15 @@ images_side_by_side((im1, im2, im3, im4), save_to=make_saving_path(f"pca_{activi
 
 
 def get_title(timestep):
-    if timestep >= hold_orientation_for*2+hold_cue_for+delay0+delay1+delay2:
+    if timestep >= hold_orientation_for * 2 + hold_cue_for + delay0 + delay1 + delay2:
         return "cue2 presented"
-    if timestep >= hold_orientation_for*2+delay0+delay1+delay2:
+    if timestep >= hold_orientation_for * 2 + delay0 + delay1 + delay2:
         return "cue1 presented"
-    if timestep >= hold_orientation_for*2+delay0+delay1:
+    if timestep >= hold_orientation_for * 2 + delay0 + delay1:
         return "delay2"
-    if timestep >= hold_orientation_for+delay0+delay1:
+    if timestep >= hold_orientation_for + delay0 + delay1:
         return "orientation2 presented"
-    if timestep >= hold_orientation_for+delay0:
+    if timestep >= hold_orientation_for + delay0:
         return "delay1"
     if timestep >= delay0:
         return "orientation1 presented"
@@ -1362,21 +1363,22 @@ def get_title(timestep):
 
 dirname = f"PCA_{activity_of}_fixed"
 import pathlib
+
 _path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
 _path.parent.mkdir(parents=True, exist_ok=True)
 for a in range(t_from, t_to):
-    res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
-    t = -t1+a
-    res = res[:, :, t:t+1, :]
+    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+    t = -t1 + a
+    res = res[:, :, t:t + 1, :]
     c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
     res = res.reshape(-1, 10)
     plt.close('all')
     fig = plt.figure(figsize=(9, 9))
-    #ax = fig.add_subplot()
+    # ax = fig.add_subplot()
     ax = fig.add_subplot(projection='3d')
-    #ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-    #ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-    #ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
     ax.scatter(res[:, 1], res[:, 0], res[:, 2], c=c, s=10)
     ax.set_xlim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
     ax.set_ylim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
@@ -1384,47 +1386,256 @@ for a in range(t_from, t_to):
     ax.set_xlabel("PC2")
     ax.set_ylabel("PC1")
     ax.set_zlabel("PC3")
-    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
                  f"\n(t={get_title(a)})")
 
     plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
-    if a % 10 == 0: print(f"{t}({(a-t_from)/(t_to-t_from)*100:.2f}%)", end=" ")
-os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
-
+    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
+os.system(
+    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
 
 # In[298]:
 
 
 dirname = f"PCA_{activity_of}_2d_fixed"
 import pathlib
+
 _path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
 _path.parent.mkdir(parents=True, exist_ok=True)
 for a in range(t_from, t_to):
-    res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
-    t = -t1+a
-    res = res[:, :, t:t+1, :]
+    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+    t = -t1 + a
+    res = res[:, :, t:t + 1, :]
     c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
     res = res.reshape(-1, 10)
     plt.close('all')
     fig = plt.figure(figsize=(9, 9))
-    #ax = fig.add_subplot()
+    # ax = fig.add_subplot()
     ax = fig.add_subplot()
-    #ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-    #ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-    #ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
     ax.scatter(res[:, 0], res[:, 1], c=c, s=10)
     ax.set_xlim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
     ax.set_ylim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
-    #ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
-    #ax.legend()
+    # ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
+    # ax.legend()
     ax.set_xlabel("PC1")
     ax.set_ylabel("PC2")
-    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
                  f"\n(t={get_title(a)})")
 
     plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
-    if a % 10 == 0: print(f"{t}({(a-t_from)/(t_to-t_from)*100:.2f}%)", end=" ")
-os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
+    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
+os.system(
+    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
+
+######################### R1
+
+# In[293]:
+
+
+t_from, t_from_d = t1, t1d
+t_to, t_to_d = t5, t5d
+
+# timestep_from, timestep_to = 0, 300
+
+indices = torch.cat((R2_i,))
+activity_of = "R2"
+
+arr = megabatch_output[1].clone()[:, t_from:t_to, :].reshape(-1, dim_recurrent)
+# arr = arr[:, torch.cat((R1_i, DT_i))]#R2_indices[-1]]
+arr = arr[:, indices]  # R2_indices[-1]]
+arr = arr.cpu().detach().numpy()
+
+pca = PCA(n_components=10, svd_solver='full')
+arr_pca = pca.fit_transform(arr)
+
+fig = plt.figure(figsize=(6, 3))
+plt.bar(range(1, len(pca.explained_variance_ratio_) + 1), pca.explained_variance_ratio_)
+plt.title(f"Explained variance in {activity_of} activity by PCA\n({t_from_d} to {t_to_d})")
+plt.xlabel("component #")
+plt.ylabel("ratio of explained variance")
+plt.xticks(range(1, len(pca.explained_variance_ratio_) + 1))
+plt.savefig(make_saving_path(f"pca_{activity_of}_{t_from}to{t_to}_explainedvariance.pdf"), bbox_inches='tight')
+
+arr_pca.shape
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+# res = res[:, :, :]
+c = [t for o1 in range(res.shape[0]) for o2 in range(res.shape[1]) for t in range(res.shape[2])]
+res = res.reshape(-1, 10)
+fig = plt.figure(figsize=(9, 9))
+# ax = fig.add_subplot()
+ax = fig.add_subplot()
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+ax.scatter(res[:, 0], res[:, 1], c=c, s=1)
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
+ax.set_xlabel("PC1")
+ax.set_ylabel("PC2")
+ax.set_title(f"PCA on {activity_of} activity, colored by timestep\n({t_from_d} to {t_to_d})")
+im1 = plt_to_image(fig)
+
+arr_pca.shape
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+res = res[:, :, :]
+c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
+res = res.reshape(-1, 10)
+fig = plt.figure(figsize=(9, 9))
+# ax = fig.add_subplot()
+ax = fig.add_subplot()
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+ax.scatter(res[:, 0], res[:, 1], c=c, s=1)
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
+ax.set_xlabel("PC1")
+ax.set_ylabel("PC2")
+ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n({t_from_d} to {t_to_d})")
+im2 = plt_to_image(fig)
+
+arr_pca.shape
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+res = res[:, :, :]
+c = [t for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
+res = res.reshape(-1, 10)
+fig = plt.figure(figsize=(9, 9))
+# ax = fig.add_subplot()
+ax = fig.add_subplot(projection='3d')
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+ax.scatter(res[:, 2], res[:, 0], res[:, 1], c=c, s=1)
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
+ax.set_xlabel("PC3")
+ax.set_ylabel("PC1")
+ax.set_zlabel("PC2")
+ax.set_title(f"PCA on {activity_of} activity, colored by timestep\n({t_from_d} to {t_to_d})")
+im3 = plt_to_image(fig)
+
+arr_pca.shape
+res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+res = res[:, :, :]
+c = [o1 for o1 in range(res.shape[0]) for o2 in range(res.shape[1]) for t in range(res.shape[2])]
+res = res.reshape(-1, 10)
+fig = plt.figure(figsize=(9, 9))
+# ax = fig.add_subplot()
+ax = fig.add_subplot(projection='3d')
+# ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+# ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+# ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+ax.scatter(res[:, 2], res[:, 0], res[:, 1], c=c, s=1)
+# ax.set_xlim(-3, 3)
+# ax.set_ylim(-4.5, 5)
+# ax.legend()
+ax.set_xlabel("PC3")
+ax.set_ylabel("PC1")
+ax.set_zlabel("PC2")
+ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n({t_from_d} to {t_to_d})")
+im4 = plt_to_image(fig)
+
+images_side_by_side((im1, im2, im3, im4), save_to=make_saving_path(f"pca_{activity_of}_{t_from}to{t_to}_plots.pdf"))
+
+
+# ### Videos of PCA
+
+# In[294]:
+
+
+def get_title(timestep):
+    if timestep >= hold_orientation_for * 2 + hold_cue_for + delay0 + delay1 + delay2:
+        return "cue2 presented"
+    if timestep >= hold_orientation_for * 2 + delay0 + delay1 + delay2:
+        return "cue1 presented"
+    if timestep >= hold_orientation_for * 2 + delay0 + delay1:
+        return "delay2"
+    if timestep >= hold_orientation_for + delay0 + delay1:
+        return "orientation2 presented"
+    if timestep >= hold_orientation_for + delay0:
+        return "delay1"
+    if timestep >= delay0:
+        return "orientation1 presented"
+    return "delay0"
+
+
+# In[297]:
+
+
+dirname = f"PCA_{activity_of}_fixed"
+import pathlib
+
+_path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
+_path.parent.mkdir(parents=True, exist_ok=True)
+for a in range(t_from, t_to):
+    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+    t = -t1 + a
+    res = res[:, :, t:t + 1, :]
+    c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
+    res = res.reshape(-1, 10)
+    plt.close('all')
+    fig = plt.figure(figsize=(9, 9))
+    # ax = fig.add_subplot()
+    ax = fig.add_subplot(projection='3d')
+    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    ax.scatter(res[:, 1], res[:, 0], res[:, 2], c=c, s=10)
+    ax.set_xlim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
+    ax.set_ylim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
+    ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
+    ax.set_xlabel("PC2")
+    ax.set_ylabel("PC1")
+    ax.set_zlabel("PC3")
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
+                 f"\n(t={get_title(a)})")
+
+    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
+    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
+os.system(
+    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
+
+# In[298]:
+
+
+dirname = f"PCA_{activity_of}_2d_fixed"
+import pathlib
+
+_path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
+_path.parent.mkdir(parents=True, exist_ok=True)
+for a in range(t_from, t_to):
+    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
+    t = -t1 + a
+    res = res[:, :, t:t + 1, :]
+    c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
+    res = res.reshape(-1, 10)
+    plt.close('all')
+    fig = plt.figure(figsize=(9, 9))
+    # ax = fig.add_subplot()
+    ax = fig.add_subplot()
+    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    ax.scatter(res[:, 0], res[:, 1], c=c, s=10)
+    ax.set_xlim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
+    ax.set_ylim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
+    # ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
+    # ax.legend()
+    ax.set_xlabel("PC1")
+    ax.set_ylabel("PC2")
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
+                 f"\n(t={get_title(a)})")
+
+    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
+    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
+os.system(
+    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
 
 
 # ## o_spikes
@@ -1494,8 +1705,12 @@ import pathlib
 _path = pathlib.Path(f"results/{index}_{directory}/file.png")
 _path.parent.mkdir(parents=True, exist_ok=True)
 merger.write(f"results/{index}_{directory}/RESULT.pdf")
-dirname = f"PCA_{activity_of}_fixed"
+dirname = f"PCA_R1_fixed"
 os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
-dirname = f"PCA_{activity_of}_2d_fixed"
+dirname = f"PCA_R1_2d_fixed"
+os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
+dirname = f"PCA_R2_fixed"
+os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
+dirname = f"PCA_R2_2d_fixed"
 os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
 merger.close()

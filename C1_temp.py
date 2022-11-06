@@ -462,4 +462,8 @@ dirname = f"PCA_R1_fixed"
 os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
 dirname = f"PCA_R1_2d_fixed"
 os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
+dirname = f"PCA_R2_fixed"
+os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
+dirname = f"PCA_R2_2d_fixed"
+os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
 merger.close()
