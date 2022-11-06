@@ -441,6 +441,9 @@ from PyPDF2 import PdfMerger
 files = [f for f in os.listdir(make_saving_path("")) if f.endswith('.pdf')]
 files.sort(key=lambda x: os.path.getmtime(make_saving_path(x)))
 pdfs = [make_saving_path(i) for i in files]
+print(files)
+print(pdfs)
+print(make_saving_path("RESULT.pdf"))
 
 merger = PdfMerger()
 
