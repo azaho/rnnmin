@@ -75,8 +75,14 @@ def train_network(model, task, max_steps, batch_size=64,
         output, h = model(input, noise_amplitude=noise_amplitude)
 
         # TODO: add criterion
-        error = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2) / torch.sum(
+        #error = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2) / torch.sum(
+        #    output_mask == 1)
+        error = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2, dim=0) / torch.sum(
             output_mask == 1)
+        error_o1 = (error[0] + error[1]).item()
+        error_o2 = (error[2] + error[3]).item()
+        error = torch.sum(error)
+
         if regularization_norm == 1:
             for param in model.parameters():
                 if param.requires_grad is True:
@@ -129,7 +135,7 @@ def train_network(model, task, max_steps, batch_size=64,
         if np.isin(p, set_note_parameters):
             if not silent:
                 error_wo_reg = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2) / torch.sum(output_mask == 1)
-                print(f'{p} parameter updates: error = {error.item():.4g}, w/o reg {error_wo_reg.item():.4g}')
+                print(f'{p} parameter updates: error = {error.item():.4g}, w/o reg {error_wo_reg.item():.4g}, o1 {error_o1:.4g}, o2 {error_o2:.4g}')
         if np.isin(p, set_save_parameters):
             save_network(model, dir_save_parameters + f'model_parameterupdate{p}.pth')
         if error.item() < best_network_error:

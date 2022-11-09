@@ -24,6 +24,7 @@ import math
 import os
 import numpy as np
 import pathlib
+import shutil
 
 plt.ioff()
 matplotlib.use('Agg')
@@ -57,7 +58,7 @@ parser.add_argument('--hold_zero', action="store_true",
 parser.add_argument('--parameter_updates', type=int,
                     help='which network to analyze?', default=0)
 parser.add_argument('--ori_res', type=int,
-                    help='which network to analyze?', default=5)
+                    help='which network to analyze?', default=3)
 parser.add_argument('--redo_preanalysis', action="store_true",
                     help='hold outputs at zero?')
 args = parser.parse_args()
@@ -114,105 +115,103 @@ else:
 
 # In[17]:
 
+index = model_filename.split(".")[0]
+_path = pathlib.Path(f"{directory}/{index}/megabatch_tuningdata.pt")
+_path.parent.mkdir(parents=True, exist_ok=True)
 
-if redo_preanalysis is None:
-    index = model_filename.split(".")[0]
-    redo_preanalysis = not os.path.exists(f"{directory}/{index}/megabatch_tuningdata.pt")
-    
-if redo_preanalysis:
-    ######################## PREANALYSIS CODE
+shutil.rmtree(f'{directory}/{index}', ignore_errors=True)
+print(f'{directory}/{index}')
 
-    index = model_filename.split(".")[0]
-    _path = pathlib.Path(f"{directory}/{index}/megabatch_tuningdata.pt")
-    _path.parent.mkdir(parents=True, exist_ok=True)
-    
-    hold_orientation_for, hold_cue_for = 50, 50
-    #delay0, delay1, delay2 = delay0_set[-1].item(), delay1_set[-1].item(), delay2_set[-1].item()
-    #delay0, delay1, delay2 = torch.median(delay0_set).item(), torch.median(delay1_set).item(), torch.median(delay2_set).item()
-    delay0, delay1, delay2 = 50, 50, 50
-    total_time = hold_orientation_for*2+hold_cue_for+delay0+delay1+delay2
+_path = pathlib.Path(f"{directory}/{index}/megabatch_tuningdata.pt")
+_path.parent.mkdir(parents=True, exist_ok=True)
 
-    orientation_neurons = 32
-    task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
-                                            simple_input=simple_input, simple_output=simple_output)
-    model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh")
-    
-    print("Carrying out pre-analysis...")
+hold_orientation_for, hold_cue_for = 50, 50
+#delay0, delay1, delay2 = delay0_set[-1].item(), delay1_set[-1].item(), delay2_set[-1].item()
+#delay0, delay1, delay2 = torch.median(delay0_set).item(), torch.median(delay1_set).item(), torch.median(delay2_set).item()
+delay0, delay1, delay2 = 50, 50, 50
+total_time = hold_orientation_for*2+hold_cue_for+delay0+delay1+delay2
 
-    state_dict = torch.load(f"{directory}/{model_filename}")["model_state_dict"]
-    model.load_state_dict(state_dict)
+orientation_neurons = 32
+task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
+                                        simple_input=simple_input, simple_output=simple_output)
+model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh")
 
-    ####################################
-    print("Generating megabatch...")
+print("Carrying out pre-analysis...")
 
-    def generate_megabatch(task, delay0, delay1, delay2):
-        batch = []
-        batch_labels = []
-        output_masks = []
-        for orientation1 in ORI_SET:
-            for orientation2 in ORI_SET:
-                to_batch, to_batch_labels, to_mask = task._make_trial(orientation1, orientation2, delay0, delay1, delay2)
-                batch.append(to_batch.unsqueeze(0))
-                batch_labels.append(to_batch_labels.unsqueeze(0))
-                output_masks.append(to_mask.unsqueeze(0))
-        return torch.cat(batch).to(config.device), torch.cat(batch_labels).to(config.device), torch.cat(
-            output_masks).to(config.device)
-    batch = generate_megabatch(task, delay0, delay1, delay2)
-    print("Running the model...")
-    output = model(batch[0])
+state_dict = torch.load(f"{directory}/{model_filename}")["model_state_dict"]
+model.load_state_dict(state_dict)
 
-    ####################################
-    print("Calculating data_all...")
+####################################
+print("Generating megabatch...")
 
-    data_all = torch.zeros((total_time, dim_recurrent, ORI_SET_SIZE, ORI_SET_SIZE))
-    for orientation1 in range(ORI_SET_SIZE):
-        for orientation2 in range(ORI_SET_SIZE):
-            o = output[1][orientation1 * ORI_SET_SIZE + orientation2]
-            data_all[:, :, orientation1, orientation2] = o
+def generate_megabatch(task, delay0, delay1, delay2):
+    batch = []
+    batch_labels = []
+    output_masks = []
+    for orientation1 in ORI_SET:
+        for orientation2 in ORI_SET:
+            to_batch, to_batch_labels, to_mask = task._make_trial(orientation1, orientation2, delay0, delay1, delay2)
+            batch.append(to_batch.unsqueeze(0))
+            batch_labels.append(to_batch_labels.unsqueeze(0))
+            output_masks.append(to_mask.unsqueeze(0))
+    return torch.cat(batch).to(config.device), torch.cat(batch_labels).to(config.device), torch.cat(
+        output_masks).to(config.device)
+batch = generate_megabatch(task, delay0, delay1, delay2)
+print("Running the model...")
+output = model(batch[0])
 
-    ####################################
-    print("Calculating tuning indices...")
-    
-    tuning_indices = []
-    for timestep in range(total_time):
-        sor = []
-        for i in range(dim_recurrent):
-            data_in = data_all[timestep][i]
-            var1 = torch.var(torch.sum(data_in, axis=1))+0.01
-            var2 = torch.var(torch.sum(data_in, axis=0))+0.01
-            var = (var1/var2).item()
-            #if var>10:
-            sor.append({"id": i, "var": var, "pref": (1 if var1>var2 else 2)})
-           # print(f"UNIT {i}: {var1/var2+var2/var1}")
-        sor = sorted(sor, reverse=True, key=lambda x: x["var"])
-        sor_i = [x["id"] for x in sor]
-        tuning_indices.append(sor_i)
-    tuning_indices = torch.tensor(tuning_indices, dtype=int)
+####################################
+print("Calculating data_all...")
 
-    ####################################
-    print("Saving...")
+data_all = torch.zeros((total_time, dim_recurrent, ORI_SET_SIZE, ORI_SET_SIZE))
+for orientation1 in range(ORI_SET_SIZE):
+    for orientation2 in range(ORI_SET_SIZE):
+        o = output[1][orientation1 * ORI_SET_SIZE + orientation2]
+        data_all[:, :, orientation1, orientation2] = o
 
-    result = {}
-    #result["sor_i"] = sor_i
-    #result["sor"] = sor
-    result["hold_orientation_for"] = hold_orientation_for
-    result["hold_cue_for"] = hold_cue_for
-    result["delay0"] = delay0
-    result["delay1"] = delay1
-    result["delay2"] = delay2
+####################################
+print("Calculating tuning indices...")
 
-    #retrievedTensor = tf.tensor(saved.data, saved.shape)
-    
-    index = model_filename.split(".")[0]
-    torch.save(data_all, f"{directory}/{index}/megabatch_tuningdata.pt")
-    torch.save(tuning_indices, f"{directory}/{index}/megabatch_tuningindices.pt")
-    torch.save(output, f"{directory}/{index}/megabatch_output.pt")
-    torch.save(batch[0], f"{directory}/{index}/megabatch_input.pt")
-    torch.save(batch[1], f"{directory}/{index}/megabatch_target.pt")
-    torch.save(batch[2], f"{directory}/{index}/megabatch_mask.pt")
-    with open(f"{directory}/{index}/info.json", 'w', encoding='utf-8') as f:
-        json.dump(result, f, ensure_ascii=False, indent=4)
-    print("Done...")
+tuning_indices = []
+for timestep in range(total_time):
+    sor = []
+    for i in range(dim_recurrent):
+        data_in = data_all[timestep][i]
+        var1 = torch.var(torch.sum(data_in, axis=1))+0.01
+        var2 = torch.var(torch.sum(data_in, axis=0))+0.01
+        var = (var1/var2).item()
+        #if var>10:
+        sor.append({"id": i, "var": var, "pref": (1 if var1>var2 else 2)})
+       # print(f"UNIT {i}: {var1/var2+var2/var1}")
+    sor = sorted(sor, reverse=True, key=lambda x: x["var"])
+    sor_i = [x["id"] for x in sor]
+    tuning_indices.append(sor_i)
+tuning_indices = torch.tensor(tuning_indices, dtype=int)
+
+####################################
+print("Saving...")
+
+result = {}
+#result["sor_i"] = sor_i
+#result["sor"] = sor
+result["hold_orientation_for"] = hold_orientation_for
+result["hold_cue_for"] = hold_cue_for
+result["delay0"] = delay0
+result["delay1"] = delay1
+result["delay2"] = delay2
+
+#retrievedTensor = tf.tensor(saved.data, saved.shape)
+
+index = model_filename.split(".")[0]
+torch.save(data_all, f"{directory}/{index}/megabatch_tuningdata.pt")
+torch.save(tuning_indices, f"{directory}/{index}/megabatch_tuningindices.pt")
+torch.save(output, f"{directory}/{index}/megabatch_output.pt")
+torch.save(batch[0], f"{directory}/{index}/megabatch_input.pt")
+torch.save(batch[1], f"{directory}/{index}/megabatch_target.pt")
+torch.save(batch[2], f"{directory}/{index}/megabatch_mask.pt")
+with open(f"{directory}/{index}/info.json", 'w', encoding='utf-8') as f:
+    json.dump(result, f, ensure_ascii=False, indent=4)
+print("Done...")
 
 
 # In[18]:

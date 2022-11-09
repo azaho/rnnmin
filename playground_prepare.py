@@ -223,6 +223,34 @@ def images_side_by_side(images, save_to=None, vert_pref=False, figsize=None, tit
         fig.subplots_adjust(top=0.95, left=0.04, bottom=0.04)
         #fig.show()
         #plt.close('all')
+def images_table(images, save_to=None, vert_pref=False, figsize=None, title=None):
+    plt.close('all')
+    nrows, ncols = images.shape
+    fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(6*ncols, 6*nrows) if figsize is None else figsize)
+    if nrows == 1:
+        if ncols == 1: ax = np.array([[ax]])
+        else: ax = np.array([ax])
+    else:
+        if ncols == 1: ax = np.array([[ax[0]], [ax[1]]]).T
+    for a in ax.ravel():
+        a.title.set_visible(False)
+        a.tick_params(left = False, labelleft = False , labelbottom = False, bottom = False)
+        a.axis('off')
+    for i in range(nrows):
+        for j in range(ncols):
+            a = ax[i][j]
+            a.imshow(images[i, j])
+    plt.tight_layout()
+    if save_to is not None:
+        plt.savefig(save_to)
+    if title is not None:
+        st = fig.suptitle(title, fontsize=20)
+        #st.set_y(0.95)
+        #fig.supxlabel('Orientation (0 to 180 deg), orientation1 (red) and orientation2 (black)', fontsize=14)
+        #fig.supylabel('Average activation (0 to 1), with standard deviation', fontsize=14)
+        fig.subplots_adjust(top=0.95, left=0.04, bottom=0.04)
+        #fig.show()
+        #plt.close('all')
 def show_images_side_by_side(images, vert_pref=False, figsize=None):
     images_side_by_side(images, vert_pref=vert_pref, figsize=figsize, title=title)
 def plt_to_image(fig):

@@ -23,6 +23,8 @@ import os
 import numpy as np
 import pathlib
 from sklearn.manifold import TSNE
+import shutil
+
 
 plt.ioff()
 matplotlib.use('Agg')
@@ -51,9 +53,7 @@ parser.add_argument('--hold_zero', action="store_true",
 parser.add_argument('--parameter_updates', type=int,
                     help='which network to analyze?', default=0)
 parser.add_argument('--ori_res', type=int,
-                    help='which network to analyze?', default=5)
-parser.add_argument('--redo_preanalysis', action="store_true",
-                    help='hold outputs at zero?')
+                    help='which network to analyze?', default=3)
 args = parser.parse_args()
 dim_recurrent = args.dim_recurrent
 index = args.index
@@ -66,7 +66,6 @@ reg_lam = args.reglam
 reg_norm = args.regnorm
 hold_zero = args.hold_zero
 parameter_updates = args.parameter_updates # 0 = best network overall
-redo_preanalysis = None if not args.redo_preanalysis else True# None = redo only if necessary
 
 ORI_RES = 3
 
@@ -97,108 +96,109 @@ if parameter_updates > 0:
 else:
     model_filename = f"model_best.pth"
 
-if redo_preanalysis is None:
-    index = model_filename.split(".")[0]
-    redo_preanalysis = not os.path.exists(f"{directory}/{index}/megabatch_tuningdata.pt")
+######################## PREANALYSIS CODE
+index = model_filename.split(".")[0]
+_path = pathlib.Path(f"{directory}/{index}/megabatch_tuningdata.pt")
+_path.parent.mkdir(parents=True, exist_ok=True)
 
-if redo_preanalysis:
-    ######################## PREANALYSIS CODE
-    index = model_filename.split(".")[0]
-    _path = pathlib.Path(f"{directory}/{index}/megabatch_tuningdata.pt")
-    _path.parent.mkdir(parents=True, exist_ok=True)
+shutil.rmtree(f'{directory}/{index}', ignore_errors=True)
+print(f'{directory}/{index}')
 
-    hold_orientation_for, hold_cue_for = 50, 50
-    # delay0, delay1, delay2 = delay0_set[-1].item(), delay1_set[-1].item(), delay2_set[-1].item()
-    # delay0, delay1, delay2 = torch.median(delay0_set).item(), torch.median(delay1_set).item(), torch.median(delay2_set).item()
-    delay0, delay1, delay2 = 50, 50, 50
-    total_time = hold_orientation_for * 2 + hold_cue_for + delay0 + delay1 + delay2
+_path = pathlib.Path(f"{directory}/{index}/megabatch_tuningdata.pt")
+_path.parent.mkdir(parents=True, exist_ok=True)
 
-    orientation_neurons = 32
-    task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set,
-                                                delay1_set, delay2_set,
-                                                simple_input=simple_input, simple_output=simple_output)
-    model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh")
+hold_orientation_for, hold_cue_for = 50, 50
+# delay0, delay1, delay2 = delay0_set[-1].item(), delay1_set[-1].item(), delay2_set[-1].item()
+# delay0, delay1, delay2 = torch.median(delay0_set).item(), torch.median(delay1_set).item(), torch.median(delay2_set).item()
+delay0, delay1, delay2 = 50, 50, 50
+total_time = hold_orientation_for * 2 + hold_cue_for + delay0 + delay1 + delay2
 
-    print("Carrying out pre-analysis...")
+orientation_neurons = 32
+task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set,
+                                            delay1_set, delay2_set,
+                                            simple_input=simple_input, simple_output=simple_output)
+model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh")
 
-    state_dict = torch.load(f"{directory}/{model_filename}")["model_state_dict"]
-    model.load_state_dict(state_dict)
+print("Carrying out pre-analysis...")
 
-    ####################################
-    print("Generating megabatch...")
+state_dict = torch.load(f"{directory}/{model_filename}")["model_state_dict"]
+model.load_state_dict(state_dict)
 
-
-    def generate_megabatch(task, delay0, delay1, delay2):
-        batch = []
-        batch_labels = []
-        output_masks = []
-        for orientation1 in ORI_SET:
-            for orientation2 in ORI_SET:
-                to_batch, to_batch_labels, to_mask = task._make_trial(orientation1, orientation2, delay0, delay1,
-                                                                      delay2)
-                batch.append(to_batch.unsqueeze(0))
-                batch_labels.append(to_batch_labels.unsqueeze(0))
-                output_masks.append(to_mask.unsqueeze(0))
-        return torch.cat(batch).to(config.device), torch.cat(batch_labels).to(config.device), torch.cat(
-            output_masks).to(config.device)
+####################################
+print("Generating megabatch...")
 
 
-    batch = generate_megabatch(task, delay0, delay1, delay2)
-    print("Running the model...")
-    output = model(batch[0])
+def generate_megabatch(task, delay0, delay1, delay2):
+    batch = []
+    batch_labels = []
+    output_masks = []
+    for orientation1 in ORI_SET:
+        for orientation2 in ORI_SET:
+            to_batch, to_batch_labels, to_mask = task._make_trial(orientation1, orientation2, delay0, delay1,
+                                                                  delay2)
+            batch.append(to_batch.unsqueeze(0))
+            batch_labels.append(to_batch_labels.unsqueeze(0))
+            output_masks.append(to_mask.unsqueeze(0))
+    return torch.cat(batch).to(config.device), torch.cat(batch_labels).to(config.device), torch.cat(
+        output_masks).to(config.device)
 
-    ####################################
-    print("Calculating data_all...")
 
-    data_all = torch.zeros((total_time, dim_recurrent, ORI_SET_SIZE, ORI_SET_SIZE))
-    for orientation1 in range(ORI_SET_SIZE):
-        for orientation2 in range(ORI_SET_SIZE):
-            o = output[1][orientation1 * ORI_SET_SIZE + orientation2]
-            data_all[:, :, orientation1, orientation2] = o
+batch = generate_megabatch(task, delay0, delay1, delay2)
+print("Running the model...")
+output = model(batch[0])
 
-    ####################################
-    print("Calculating tuning indices...")
+####################################
+print("Calculating data_all...")
 
-    tuning_indices = []
-    for timestep in range(total_time):
-        sor = []
-        for i in range(dim_recurrent):
-            data_in = data_all[timestep][i]
-            var1 = torch.var(torch.sum(data_in, axis=1)) + 0.01
-            var2 = torch.var(torch.sum(data_in, axis=0)) + 0.01
-            var = (var1 / var2).item()
-            # if var>10:
-            sor.append({"id": i, "var": var, "pref": (1 if var1 > var2 else 2)})
-        # print(f"UNIT {i}: {var1/var2+var2/var1}")
-        sor = sorted(sor, reverse=True, key=lambda x: x["var"])
-        sor_i = [x["id"] for x in sor]
-        tuning_indices.append(sor_i)
-    tuning_indices = torch.tensor(tuning_indices, dtype=int)
+data_all = torch.zeros((total_time, dim_recurrent, ORI_SET_SIZE, ORI_SET_SIZE))
+for orientation1 in range(ORI_SET_SIZE):
+    for orientation2 in range(ORI_SET_SIZE):
+        o = output[1][orientation1 * ORI_SET_SIZE + orientation2]
+        data_all[:, :, orientation1, orientation2] = o
 
-    ####################################
-    print("Saving...")
+####################################
+print("Calculating tuning indices...")
 
-    result = {}
-    # result["sor_i"] = sor_i
-    result["sor"] = sor
-    result["hold_orientation_for"] = hold_orientation_for
-    result["hold_cue_for"] = hold_cue_for
-    result["delay0"] = delay0
-    result["delay1"] = delay1
-    result["delay2"] = delay2
+tuning_indices = []
+for timestep in range(total_time):
+    sor = []
+    for i in range(dim_recurrent):
+        data_in = data_all[timestep][i]
+        var1 = torch.var(torch.sum(data_in, axis=1)) + 0.01
+        var2 = torch.var(torch.sum(data_in, axis=0)) + 0.01
+        var = (var1 / var2).item()
+        # if var>10:
+        sor.append({"id": i, "var": var, "pref": (1 if var1 > var2 else 2)})
+    # print(f"UNIT {i}: {var1/var2+var2/var1}")
+    sor = sorted(sor, reverse=True, key=lambda x: x["var"])
+    sor_i = [x["id"] for x in sor]
+    tuning_indices.append(sor_i)
+tuning_indices = torch.tensor(tuning_indices, dtype=int)
 
-    # retrievedTensor = tf.tensor(saved.data, saved.shape)
+####################################
+print("Saving...")
 
-    index = model_filename.split(".")[0]
-    torch.save(data_all, f"{directory}/{index}/megabatch_tuningdata.pt")
-    torch.save(tuning_indices, f"{directory}/{index}/megabatch_tuningindices.pt")
-    torch.save(output, f"{directory}/{index}/megabatch_output.pt")
-    torch.save(batch[0], f"{directory}/{index}/megabatch_input.pt")
-    torch.save(batch[1], f"{directory}/{index}/megabatch_target.pt")
-    torch.save(batch[2], f"{directory}/{index}/megabatch_mask.pt")
-    with open(f"{directory}/{index}/info.json", 'w', encoding='utf-8') as f:
-        json.dump(result, f, ensure_ascii=False, indent=4)
-    print("Done...")
+result = {}
+# result["sor_i"] = sor_i
+result["sor"] = sor
+result["hold_orientation_for"] = hold_orientation_for
+result["hold_cue_for"] = hold_cue_for
+result["delay0"] = delay0
+result["delay1"] = delay1
+result["delay2"] = delay2
+
+# retrievedTensor = tf.tensor(saved.data, saved.shape)
+
+index = model_filename.split(".")[0]
+torch.save(data_all, f"{directory}/{index}/megabatch_tuningdata.pt")
+torch.save(tuning_indices, f"{directory}/{index}/megabatch_tuningindices.pt")
+torch.save(output, f"{directory}/{index}/megabatch_output.pt")
+torch.save(batch[0], f"{directory}/{index}/megabatch_input.pt")
+torch.save(batch[1], f"{directory}/{index}/megabatch_target.pt")
+torch.save(batch[2], f"{directory}/{index}/megabatch_mask.pt")
+with open(f"{directory}/{index}/info.json", 'w', encoding='utf-8') as f:
+    json.dump(result, f, ensure_ascii=False, indent=4)
+print("Done...")
 
 index = model_filename.split(".")[0]
 with open(f"{directory}/{index}/info.json", 'r', encoding='utf-8') as f:
@@ -696,199 +696,6 @@ images_side_by_side((
 ), save_to=make_saving_path("clustering_abs.pdf"), title=f"Unsupervised clustering of units")
 
 
-# In[34]:
-
-
-import openTSNE
-
-def oneminus_corr_xy(x, y):
-    c = np.corrcoef(x, y)[0][1]
-    return 1-c if c==c else 0
-def oneminus_abs_corr_xy(x, y):
-    c = np.corrcoef(x, y)[0][1]
-    return 1-np.abs(c) if c==c else 0
-
-
-# In[35]:
-
-
-t_from, t_from_d = t1, t1d
-t_to, t_to_d = t5, t5d
-arr = megabatch_output[1].clone()[:, t_from:t_to, :].reshape(-1, dim_recurrent)
-arr = arr[:, torch.cat((R1_i, DT_i, R2_i))]
-arr = arr.T.cpu().detach().numpy()
-corr = np.corrcoef(arr)
-corr[corr!=corr]=1 # get rid of null values
-#corr = np.abs(corr)
-fig = plt.figure(figsize=(6, 6))
-plt.imshow(corr)
-plt.tick_params(left = False, labelleft = False , labelbottom = False, bottom = False)
-#plt.axis('off')
-plt.xlabel("unit")
-plt.ylabel("unit")
-plt.title(f"correlation of unit activities\n({t_from_d} to {t_to_d})")
-plt.xticks([0, 99])
-plt.yticks([0, 99])
-im1 = plt_to_image(fig)
-
-tsne = openTSNE.TSNE(
-    perplexity=30,
-    metric=oneminus_corr_xy,
-    n_jobs=8,
-    random_state=42,
-    verbose=False,
-)
-tsne_result = tsne.fit(arr)
-#tsne_result.shape
-fig = plt.figure()
-#ax = fig.add_subplot()
-R1_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R1_i], dim=2), dim=1)*ORI_RES
-R2_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R2_i], dim=1), dim=1)*ORI_RES
-plt.scatter(tsne_result[:len(R1_i), 0], tsne_result[:len(R1_i), 1], R1_pref, color='r', label="R1 units")
-plt.scatter(tsne_result[-len(R2_i):, 0], tsne_result[-len(R2_i):, 1], R2_pref, color='b', label="R2 units")
-plt.scatter(tsne_result[len(R1_i):len(R1_i)+len(DT_i), 0], tsne_result[len(R1_i):len(R1_i)+len(DT_i), 1], color='g', label="DT units")
-plt.xlabel("component 1")
-plt.ylabel("component 2")
-plt.title(f"openTSNE of unit activities, metric=1-corr")
-plt.legend()
-im2 = plt_to_image(fig)
-
-t_from, t_from_d = t3, t3d
-t_to, t_to_d = t6, t6d
-arr = megabatch_output[1].clone()[:, t_from:t_to, :].reshape(-1, dim_recurrent)
-arr = arr[:, torch.cat((R1_i, DT_i, R2_i))]
-arr = arr.T.cpu().detach().numpy()
-corr = np.corrcoef(arr)
-corr[corr!=corr]=1 # get rid of null values
-#corr = np.abs(corr)
-fig = plt.figure(figsize=(6, 6))
-plt.imshow(corr)
-plt.tick_params(left = False, labelleft = False , labelbottom = False, bottom = False)
-#plt.axis('off')
-plt.xlabel("unit")
-plt.ylabel("unit")
-plt.title(f"correlation of unit activities\n({t_from_d} to {t_to_d})")
-plt.xticks([0, 99])
-plt.yticks([0, 99])
-im3 = plt_to_image(fig)
-
-tsne = openTSNE.TSNE(
-    perplexity=30,
-    metric=oneminus_corr_xy,
-    n_jobs=8,
-    random_state=42,
-    verbose=False,
-)
-tsne_result = tsne.fit(arr)
-#tsne_result.shape
-fig = plt.figure()
-#ax = fig.add_subplot()
-R1_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R1_i], dim=2), dim=1)*ORI_RES
-R2_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R2_i], dim=1), dim=1)*ORI_RES
-plt.scatter(tsne_result[:len(R1_i), 0], tsne_result[:len(R1_i), 1], R1_pref, color='r', label="R1 units")
-plt.scatter(tsne_result[-len(R2_i):, 0], tsne_result[-len(R2_i):, 1], R2_pref, color='b', label="R2 units")
-plt.scatter(tsne_result[len(R1_i):len(R1_i)+len(DT_i), 0], tsne_result[len(R1_i):len(R1_i)+len(DT_i), 1], color='g', label="DT units")
-plt.xlabel("component 1")
-plt.ylabel("component 2")
-plt.title(f"openTSNE of unit activities, metric=1-corr")
-plt.legend()
-im4 = plt_to_image(fig)
-
-images_side_by_side((
-    im1, im2, im3, im4
-), save_to=make_saving_path("clustering_opentsne.pdf"), title=f"Unsupervised clustering of units")
-
-
-# In[36]:
-
-
-t_from, t_from_d = t1, t1d
-t_to, t_to_d = t5, t5d
-arr = megabatch_output[1].clone()[:, t_from:t_to, :].reshape(-1, dim_recurrent)
-arr = arr[:, torch.cat((R1_i, DT_i, R2_i))]
-arr = arr.T.cpu().detach().numpy()
-corr = np.corrcoef(arr)
-corr[corr!=corr]=1 # get rid of null values
-corr = np.abs(corr)
-fig = plt.figure(figsize=(6, 6))
-plt.imshow(corr)
-plt.tick_params(left = False, labelleft = False , labelbottom = False, bottom = False)
-#plt.axis('off')
-plt.xlabel("unit")
-plt.ylabel("unit")
-plt.title(f"|correlation| of unit activities\n({t_from_d} to {t_to_d})")
-plt.xticks([0, 99])
-plt.yticks([0, 99])
-im1 = plt_to_image(fig)
-
-tsne = openTSNE.TSNE(
-    perplexity=30,
-    metric=oneminus_abs_corr_xy,
-    n_jobs=8,
-    random_state=42,
-    verbose=False,
-)
-tsne_result = tsne.fit(arr)
-#tsne_result.shape
-fig = plt.figure()
-#ax = fig.add_subplot()
-R1_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R1_i], dim=2), dim=1)*ORI_RES
-R2_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R2_i], dim=1), dim=1)*ORI_RES
-plt.scatter(tsne_result[:len(R1_i), 0], tsne_result[:len(R1_i), 1], R1_pref, color='r', label="R1 units")
-plt.scatter(tsne_result[-len(R2_i):, 0], tsne_result[-len(R2_i):, 1], R2_pref, color='b', label="R2 units")
-plt.scatter(tsne_result[len(R1_i):len(R1_i)+len(DT_i), 0], tsne_result[len(R1_i):len(R1_i)+len(DT_i), 1], color='g', label="DT units")
-plt.xlabel("component 1")
-plt.ylabel("component 2")
-plt.title(f"openTSNE of unit activities, metric=1-|corr|")
-plt.legend()
-im2 = plt_to_image(fig)
-
-t_from, t_from_d = t3, t3d
-t_to, t_to_d = t6, t6d
-arr = megabatch_output[1].clone()[:, t_from:t_to, :].reshape(-1, dim_recurrent)
-arr = arr[:, torch.cat((R1_i, DT_i, R2_i))]
-arr = arr.T.cpu().detach().numpy()
-corr = np.corrcoef(arr)
-corr[corr!=corr]=1 # get rid of null values
-corr = np.abs(corr)
-fig = plt.figure(figsize=(6, 6))
-plt.imshow(corr)
-plt.tick_params(left = False, labelleft = False , labelbottom = False, bottom = False)
-#plt.axis('off')
-plt.xlabel("unit")
-plt.ylabel("unit")
-plt.title(f"|correlation| of unit activities\n({t_from_d} to {t_to_d})")
-plt.xticks([0, 99])
-plt.yticks([0, 99])
-im3 = plt_to_image(fig)
-
-tsne = openTSNE.TSNE(
-    perplexity=30,
-    metric=oneminus_abs_corr_xy,
-    n_jobs=8,
-    random_state=42,
-    verbose=False,
-)
-tsne_result = tsne.fit(arr)
-#tsne_result.shape
-fig = plt.figure()
-#ax = fig.add_subplot()
-R1_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R1_i], dim=2), dim=1)*ORI_RES
-R2_pref = torch.argmax(torch.sum(megabatch_tuningdata[timestep][R2_i], dim=1), dim=1)*ORI_RES
-plt.scatter(tsne_result[:len(R1_i), 0], tsne_result[:len(R1_i), 1], R1_pref, color='r', label="R1 units")
-plt.scatter(tsne_result[-len(R2_i):, 0], tsne_result[-len(R2_i):, 1], R2_pref, color='b', label="R2 units")
-plt.scatter(tsne_result[len(R1_i):len(R1_i)+len(DT_i), 0], tsne_result[len(R1_i):len(R1_i)+len(DT_i), 1], color='g', label="DT units")
-plt.xlabel("component 1")
-plt.ylabel("component 2")
-plt.title(f"openTSNE of unit activities, metric=1-|corr|")
-plt.legend()
-im4 = plt_to_image(fig)
-
-images_side_by_side((
-    im1, im2, im3, im4
-), save_to=make_saving_path("clustering_opentsne_abs.pdf"), title=f"Unsupervised clustering of units")
-
-
 # ## Ring->Ring
 
 # In[275]:
@@ -1357,28 +1164,16 @@ def get_title(timestep):
         return "orientation1 presented"
     return "delay0"
 
-
-# In[297]:
-
-
-dirname = f"PCA_{activity_of}_fixed"
-import pathlib
-
-_path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
-_path.parent.mkdir(parents=True, exist_ok=True)
-for a in range(t_from, t_to):
-    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
-    t = -t1 + a
-    res = res[:, :, t:t + 1, :]
+def _pca_3d(ax, timestep):
+    a = timestep
+    t = -t1+a
+    res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
+    res = res[:, :, t:t+1, :]
     c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
     res = res.reshape(-1, 10)
-    plt.close('all')
-    fig = plt.figure(figsize=(9, 9))
-    # ax = fig.add_subplot()
-    ax = fig.add_subplot(projection='3d')
-    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    #ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    #ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    #ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
     ax.scatter(res[:, 1], res[:, 0], res[:, 2], c=c, s=10)
     ax.set_xlim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
     ax.set_ylim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
@@ -1386,51 +1181,53 @@ for a in range(t_from, t_to):
     ax.set_xlabel("PC2")
     ax.set_ylabel("PC1")
     ax.set_zlabel("PC3")
-    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
                  f"\n(t={get_title(a)})")
-
-    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
-    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
-os.system(
-    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
-
-# In[298]:
-
-
-dirname = f"PCA_{activity_of}_2d_fixed"
-import pathlib
-
-_path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
-_path.parent.mkdir(parents=True, exist_ok=True)
-for a in range(t_from, t_to):
-    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
-    t = -t1 + a
-    res = res[:, :, t:t + 1, :]
+def _pca_2d(ax, timestep):
+    a = timestep
+    t = -t1+a
+    res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
+    res = res[:, :, t:t+1, :]
     c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
     res = res.reshape(-1, 10)
-    plt.close('all')
-    fig = plt.figure(figsize=(9, 9))
-    # ax = fig.add_subplot()
-    ax = fig.add_subplot()
-    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    #ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    #ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    #ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
     ax.scatter(res[:, 0], res[:, 1], c=c, s=10)
     ax.set_xlim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
     ax.set_ylim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
-    # ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
-    # ax.legend()
     ax.set_xlabel("PC1")
     ax.set_ylabel("PC2")
-    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
                  f"\n(t={get_title(a)})")
 
-    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
-    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
-os.system(
-    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
+# In[297]:
 
-######################### R1
+plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
+plt.close('all')
+fig = plt.figure(figsize=(18, 18))
+ax = fig.add_subplot(2, 2, 1, projection='3d')
+_pca_3d(ax, t2)
+ax = fig.add_subplot(2, 2, 2, projection='3d')
+_pca_3d(ax, t3)
+ax = fig.add_subplot(2, 2, 3, projection='3d')
+_pca_3d(ax, t4)
+ax = fig.add_subplot(2, 2, 4, projection='3d')
+_pca_3d(ax, t5-1)
+plt.savefig(make_saving_path(f"pca_{activity_of}_3d.pdf"), bbox_inches='tight')
+plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
+
+plt.close('all')
+fig = plt.figure(figsize=(18, 18))
+ax = fig.add_subplot(2, 2, 1)
+_pca_2d(ax, t2)
+ax = fig.add_subplot(2, 2, 2)
+_pca_2d(ax, t3)
+ax = fig.add_subplot(2, 2, 3)
+_pca_2d(ax, t4)
+ax = fig.add_subplot(2, 2, 4)
+_pca_2d(ax, t5-1)
+plt.savefig(make_saving_path(f"pca_{activity_of}_2d.pdf"), bbox_inches='tight')
 
 # In[293]:
 
@@ -1567,121 +1364,33 @@ def get_title(timestep):
 
 # In[297]:
 
+# In[297]:
 
-dirname = f"PCA_{activity_of}_fixed"
-import pathlib
+plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
+plt.close('all')
+fig = plt.figure(figsize=(18, 18))
+ax = fig.add_subplot(2, 2, 1, projection='3d')
+_pca_3d(ax, t2)
+ax = fig.add_subplot(2, 2, 2, projection='3d')
+_pca_3d(ax, t3)
+ax = fig.add_subplot(2, 2, 3, projection='3d')
+_pca_3d(ax, t4)
+ax = fig.add_subplot(2, 2, 4, projection='3d')
+_pca_3d(ax, t5-1)
+plt.savefig(make_saving_path(f"pca_{activity_of}_3d.pdf"), bbox_inches='tight')
+plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
 
-_path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
-_path.parent.mkdir(parents=True, exist_ok=True)
-for a in range(t_from, t_to):
-    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
-    t = -t1 + a
-    res = res[:, :, t:t + 1, :]
-    c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
-    res = res.reshape(-1, 10)
-    plt.close('all')
-    fig = plt.figure(figsize=(9, 9))
-    # ax = fig.add_subplot()
-    ax = fig.add_subplot(projection='3d')
-    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
-    ax.scatter(res[:, 1], res[:, 0], res[:, 2], c=c, s=10)
-    ax.set_xlim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
-    ax.set_ylim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
-    ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
-    ax.set_xlabel("PC2")
-    ax.set_ylabel("PC1")
-    ax.set_zlabel("PC3")
-    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
-                 f"\n(t={get_title(a)})")
-
-    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
-    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
-os.system(
-    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
-
-# In[298]:
-
-
-dirname = f"PCA_{activity_of}_2d_fixed"
-import pathlib
-
-_path = pathlib.Path(f"{directory}/{index}/{dirname}/file.png")
-_path.parent.mkdir(parents=True, exist_ok=True)
-for a in range(t_from, t_to):
-    res = arr_pca.reshape(180 // ORI_RES, 180 // ORI_RES, t_to - t_from, 10)
-    t = -t1 + a
-    res = res[:, :, t:t + 1, :]
-    c = [o1 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
-    res = res.reshape(-1, 10)
-    plt.close('all')
-    fig = plt.figure(figsize=(9, 9))
-    # ax = fig.add_subplot()
-    ax = fig.add_subplot()
-    # ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
-    # ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
-    # ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
-    ax.scatter(res[:, 0], res[:, 1], c=c, s=10)
-    ax.set_xlim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
-    ax.set_ylim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
-    # ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
-    # ax.legend()
-    ax.set_xlabel("PC1")
-    ax.set_ylabel("PC2")
-    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})" +
-                 f"\n(t={get_title(a)})")
-
-    plt.savefig(f"{directory}/{index}/{dirname}/fig{a:03}.png", bbox_inches='tight')
-    if a % 10 == 0: print(f"{t}({(a - t_from) / (t_to - t_from) * 100:.2f}%)", end=" ")
-os.system(
-    f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p {directory}/{index}/{dirname}.mp4")
-
-
-# ## o_spikes
-
-# In[409]:
-
-
-def o_spikes(pref, stim, exponent, maxSpike, k):
-    # o_spikes: spike numbers per trial for orientation tuning cells
-    # r = o_spikes(pref, stim, exponent, k) 
-    # pref: row vec for cells' preferred orientations
-    # stim: column vec for stimulus orientations
-    # exponent: scalar determining the widths of tuning. larger value for sharper tuning
-    # maxSpike: scalar for mean max spike number when pref = stim
-    # k: scalar for determining variance = k * mean
-    # spikes: different columuns for cells with different pref orintations
-    #         different rows for different stim orientations
-    np_ = pref.shape[0]# number of elements in pref
-    ns = stim.shape[0]# number of elements in stim
-    
-    prefs = np.ones((ns,1)) @ pref[None,:]# ns x np array, (ns x 1) @ (1 x np) 
-    stims = stim[:,None] @ np.ones((1,np_))# ns x np array, (ns x 1) @ (1 x np) 
-    
-    # mean spike numbers
-    meanSpike = maxSpike * (0.5*(np.cos(2*(prefs-stims)) + 1)) ** exponent# ns x np array
-    
-    # sigma for noise
-    sigmaSpike = np.sqrt(k * meanSpike)
-    
-    #spikes = normrnd(meanSpike, sigmaSpike)# ns x np array, matlab
-    spikes = np.random.normal(meanSpike, sigmaSpike)# ns x np array, python
-    
-    # no negative spike numbers
-    spikes[spikes < 0] = 0# ns x np array
-    return spikes
-
-
-# In[420]:
-
-
-pref = np.pi * np.arange(orientation_neurons) / orientation_neurons
-stim = np.array([90 / 180 * 3.14])
-exponent = 4
-maxSpike = 1
-k = 0
-plt.plot(range(32), o_spikes(pref, stim, exponent, maxSpike, k)[0])
+plt.close('all')
+fig = plt.figure(figsize=(18, 18))
+ax = fig.add_subplot(2, 2, 1)
+_pca_2d(ax, t2)
+ax = fig.add_subplot(2, 2, 2)
+_pca_2d(ax, t3)
+ax = fig.add_subplot(2, 2, 3)
+_pca_2d(ax, t4)
+ax = fig.add_subplot(2, 2, 4)
+_pca_2d(ax, t5-1)
+plt.savefig(make_saving_path(f"pca_{activity_of}_2d.pdf"), bbox_inches='tight')
 
 
 # In[ ]:
@@ -1697,20 +1406,4 @@ merger = PdfMerger()
 for pdf in pdfs:
     merger.append(pdf)
 
-merger.write(make_saving_path("RESULT.pdf"))
-
-
-# FOR OPENMIND
-import pathlib
-_path = pathlib.Path(f"results/{index}_{directory}/file.png")
-_path.parent.mkdir(parents=True, exist_ok=True)
-merger.write(f"results/{index}_{directory}/RESULT.pdf")
-dirname = f"PCA_R1_fixed"
-os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
-dirname = f"PCA_R1_2d_fixed"
-os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
-dirname = f"PCA_R2_fixed"
-os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
-dirname = f"PCA_R2_2d_fixed"
-os.system(f"ffmpeg -framerate 10 -y -pattern_type glob -i '{directory}/{index}/{dirname}/*.png' -c:v libx264 -pix_fmt yuv420p results/{index}_{directory}/{dirname}.mp4")
-merger.close()
+merger.write(f"{directory}_{model_filename}.pdf")
