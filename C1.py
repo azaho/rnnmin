@@ -1164,7 +1164,7 @@ def get_title(timestep):
         return "orientation1 presented"
     return "delay0"
 
-def _pca_3d(ax, timestep):
+def _pca_3d_r1(ax, timestep):
     a = timestep
     t = -t1+a
     res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
@@ -1182,8 +1182,8 @@ def _pca_3d(ax, timestep):
     ax.set_ylabel("PC1")
     ax.set_zlabel("PC3")
     ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
-                 f"\n(t={get_title(a)})")
-def _pca_2d(ax, timestep):
+                 f"\n(after {get_title(a)})")
+def _pca_2d_r1(ax, timestep):
     a = timestep
     t = -t1+a
     res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
@@ -1199,7 +1199,44 @@ def _pca_2d(ax, timestep):
     ax.set_xlabel("PC1")
     ax.set_ylabel("PC2")
     ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
-                 f"\n(t={get_title(a)})")
+                 f"\n(after {get_title(a)})")
+
+def _pca_3d_r2(ax, timestep):
+    a = timestep
+    t = -t1+a
+    res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
+    res = res[:, :, t:t+1, :]
+    c = [o2 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
+    res = res.reshape(-1, 10)
+    #ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    #ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    #ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    ax.scatter(res[:, 1], res[:, 0], res[:, 2], c=c, s=10)
+    ax.set_xlim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
+    ax.set_ylim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
+    ax.set_zlim(np.min(arr_pca, axis=0)[2], np.max(arr_pca, axis=0)[2])
+    ax.set_xlabel("PC2")
+    ax.set_ylabel("PC1")
+    ax.set_zlabel("PC3")
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
+                 f"\n(after {get_title(a)})")
+def _pca_2d_r2(ax, timestep):
+    a = timestep
+    t = -t1+a
+    res = arr_pca.reshape(180//ORI_RES, 180//ORI_RES, t_to-t_from, 10)
+    res = res[:, :, t:t+1, :]
+    c = [o2 for o1 in range(res.shape[1]) for o2 in range(res.shape[0]) for t in range(res.shape[2])]
+    res = res.reshape(-1, 10)
+    #ax.scatter(tsne_result[:len(R1_indices[-1]), 0], tsne_result[:len(R1_indices[-1]), 1], color='r', label="R1 units")
+    #ax.scatter(tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 0], tsne_result[len(R1_indices[-1]):len(R1_indices[-1])+len(DT_indices[-1]), 1], color='g', label="DT units")
+    #ax.scatter(tsne_result[-len(R2_indices[-1]):, 0], tsne_result[-len(R2_indices[-1]):, 1], color='b', label="R2 units")
+    ax.scatter(res[:, 0], res[:, 1], c=c, s=10)
+    ax.set_xlim(np.min(arr_pca, axis=0)[0], np.max(arr_pca, axis=0)[0])
+    ax.set_ylim(np.min(arr_pca, axis=0)[1], np.max(arr_pca, axis=0)[1])
+    ax.set_xlabel("PC1")
+    ax.set_ylabel("PC2")
+    ax.set_title(f"PCA on {activity_of} activity, colored by orientation1\n(PCA {t_from_d} to {t_to_d})"+
+                 f"\n(after {get_title(a)})")
 
 # In[297]:
 
@@ -1207,26 +1244,26 @@ plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
 plt.close('all')
 fig = plt.figure(figsize=(18, 18))
 ax = fig.add_subplot(2, 2, 1, projection='3d')
-_pca_3d(ax, t2)
+_pca_3d_r1(ax, t2)
 ax = fig.add_subplot(2, 2, 2, projection='3d')
-_pca_3d(ax, t3)
+_pca_3d_r1(ax, t3)
 ax = fig.add_subplot(2, 2, 3, projection='3d')
-_pca_3d(ax, t4)
+_pca_3d_r1(ax, t4)
 ax = fig.add_subplot(2, 2, 4, projection='3d')
-_pca_3d(ax, t5-1)
+_pca_3d_r1(ax, t5-1)
 plt.savefig(make_saving_path(f"pca_{activity_of}_3d.pdf"), bbox_inches='tight')
 plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
 
 plt.close('all')
 fig = plt.figure(figsize=(18, 18))
 ax = fig.add_subplot(2, 2, 1)
-_pca_2d(ax, t2)
+_pca_3d_r1(ax, t2)
 ax = fig.add_subplot(2, 2, 2)
-_pca_2d(ax, t3)
+_pca_3d_r1(ax, t3)
 ax = fig.add_subplot(2, 2, 3)
-_pca_2d(ax, t4)
+_pca_3d_r1(ax, t4)
 ax = fig.add_subplot(2, 2, 4)
-_pca_2d(ax, t5-1)
+_pca_3d_r1(ax, t5-1)
 plt.savefig(make_saving_path(f"pca_{activity_of}_2d.pdf"), bbox_inches='tight')
 
 # In[293]:
@@ -1370,26 +1407,26 @@ plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
 plt.close('all')
 fig = plt.figure(figsize=(18, 18))
 ax = fig.add_subplot(2, 2, 1, projection='3d')
-_pca_3d(ax, t2)
+_pca_3d_r2(ax, t2)
 ax = fig.add_subplot(2, 2, 2, projection='3d')
-_pca_3d(ax, t3)
+_pca_3d_r2(ax, t3)
 ax = fig.add_subplot(2, 2, 3, projection='3d')
-_pca_3d(ax, t4)
+_pca_3d_r2(ax, t4)
 ax = fig.add_subplot(2, 2, 4, projection='3d')
-_pca_3d(ax, t5-1)
+_pca_3d_r2(ax, t5-1)
 plt.savefig(make_saving_path(f"pca_{activity_of}_3d.pdf"), bbox_inches='tight')
 plt.rc('font', **{'family': 'DejaVu Sans', 'weight': 'normal', 'size': 14})
 
 plt.close('all')
 fig = plt.figure(figsize=(18, 18))
 ax = fig.add_subplot(2, 2, 1)
-_pca_2d(ax, t2)
+_pca_3d_r2(ax, t2)
 ax = fig.add_subplot(2, 2, 2)
-_pca_2d(ax, t3)
+_pca_3d_r2(ax, t3)
 ax = fig.add_subplot(2, 2, 3)
-_pca_2d(ax, t4)
+_pca_3d_r2(ax, t4)
 ax = fig.add_subplot(2, 2, 4)
-_pca_2d(ax, t5-1)
+_pca_3d_r2(ax, t5-1)
 plt.savefig(make_saving_path(f"pca_{activity_of}_2d.pdf"), bbox_inches='tight')
 
 
