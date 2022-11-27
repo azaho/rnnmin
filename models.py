@@ -86,7 +86,7 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
                  Wahx=None, Wahh=None, Wyh=None, bah=None, by=None,
                  nonlinearity='retanh', ah0=None, LEARN_ah0=False,
                  dt=1, Tau=10, task=None,
-                 name="CTRNN",
+                 name="CTRNN", input_bias=True,
 
                  _SCUFFED_NORMALIZE_OUTPUTS = False):
         self._SCUFFED_NORMALIZE_OUTPUTS = _SCUFFED_NORMALIZE_OUTPUTS
@@ -104,7 +104,7 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
 
         # dim_recurrent, dim_input = Wahx.shape# dim_recurrent x dim_input tensor
         # dim_output = Wyh.shape[0]# dim_output x dim_recurrent tensor
-        self.fc_x2ah = nn.Linear(dim_input, dim_recurrent).to(config.device)  # Wahx @ x + bah
+        self.fc_x2ah = nn.Linear(dim_input, dim_recurrent, bias=input_bias).to(config.device)  # Wahx @ x + bah
         self.fc_h2ah = nn.Linear(dim_recurrent, dim_recurrent, bias=False).to(config.device)  # Wahh @ h
         self.fc_h2y = nn.Linear(dim_recurrent, dim_output).to(config.device)  # y = Wyh @ h + by
         self.num_parameters = dim_recurrent ** 2 + dim_recurrent * dim_input + dim_recurrent + dim_output * dim_recurrent + dim_output  # number of learned parameters in model
@@ -193,8 +193,12 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
             if reset_units is not None:
                 if reset_to == "mean":
                     ah[:, reset_units[t] == 1] = torch.mean(ah[:, reset_units[t] == 1], dim=1).reshape(-1, 1).repeat(1, torch.sum(reset_units[t]))
+                elif reset_to == "mean_batch":
+                    ah[:, reset_units[t] == 1] = torch.mean(ah[:, reset_units[t] == 1], dim=0).reshape(1, -1).repeat(ah.shape[0], 1)
+                elif reset_to == "one_batch":
+                    ah[:, reset_units[t] == 1] = ah[0:1, reset_units[t] == 1].clone().repeat(ah.shape[0], 1)
                 else:
-                    ah[:, reset_units[t] == 1] = reset_to
+                    ah[:, reset_units[t] == 1] = reset_to[t, reset_units[t] == 1].reshape(1, -1).repeat(ah.shape[0], 1) if (torch.is_tensor(reset_to) and reset_to.shape[0]==numT) else reset_to
 
             pastore.append(ah)
             h = computef(ah, self.nonlinearity) + bhneverlearn[:, t, :]  # bhneverlearn has shape (numtrials, numT, dim_recurrent)

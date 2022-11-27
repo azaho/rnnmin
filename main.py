@@ -36,6 +36,8 @@ parser.add_argument('--regnorm', type=int,
                     help='regulatization norm to use?', default=0)
 parser.add_argument('--hold_zero', action="store_true",
                     help='hold outputs at zero?')
+parser.add_argument('--no_bias', action="store_true",
+                    help='No bias from input?')
 parser.add_argument('--s_n_o', action="store_true",
                     help='SCUFFED: normalize networks outputs?')
 args = parser.parse_args()
@@ -49,6 +51,7 @@ orientation_neurons = 32
 reg_lam = args.reglam
 reg_norm = args.regnorm
 hold_zero = args.hold_zero
+no_bias = args.no_bias
 
 random.seed(init_random)
 torch.manual_seed(init_random)
@@ -56,17 +59,17 @@ np.random.seed(init_random)
 
 start_time = time.time()
 
-hold_orientation_for = 50
-hold_cue_for = 50
-delay0_set = torch.arange(10, 51)
-delay1_set = torch.arange(10, 51)
-delay2_set = torch.arange(10, 51)
+hold_orientation_for = 10
+hold_cue_for = 100
+delay0_set = torch.arange(30, 50)
+delay1_set = torch.arange(30, 50)
+delay2_set = torch.arange(30, 50)
 
 
 task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output, hold_outputs_at_zero=hold_zero)
 model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh",
-                     _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o)
+                     _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o, input_bias=not no_bias)
 
 directory = f"t{task.name}_m{model.name}_dr{dim_recurrent}"
 if hold_zero:
@@ -79,6 +82,8 @@ if not simple_output:
     directory += "_nso"
 if args.s_n_o:
     directory += "_sno"
+if no_bias:
+    directory += "_nb"
 directory += f"_n{noise}_r{args.random}"
 
 result = networks.train_network(model, task, max_steps=100000,

@@ -19,10 +19,7 @@ ORI_SET = np.arange(0, 180, ORI_RES)
 ORI_SET_SIZE = ORI_SET.shape[0]
 
 task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT()
-model = models.CTRNN(task=task, dim_recurrent=dim_recurrent)
-delay0_set = torch.arange(10, 51)
-delay1_set = torch.arange(10, 51)
-delay2_set = torch.arange(10, 51)
+model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, input_bias = not no_bias)
 
 directory = f"t{task.name}_m{model.name}_dr{dim_recurrent}"
 if hold_zero:
@@ -33,6 +30,8 @@ if not simple_input:
     directory += "_nsi"
 if not simple_output:
     directory += "_nso"
+if no_bias:
+    directory += "nb"
 directory += f"_n{noise}_r{init_random}"
 directory = "data/" + directory
 
@@ -51,16 +50,12 @@ if redo_preanalysis:
     _path = pathlib.Path(f"{directory}/{index}/megabatch_tuningdata.pt")
     _path.parent.mkdir(parents=True, exist_ok=True)
     
-    hold_orientation_for, hold_cue_for = 50, 50
-    #delay0, delay1, delay2 = delay0_set[-1].item(), delay1_set[-1].item(), delay2_set[-1].item()
-    #delay0, delay1, delay2 = torch.median(delay0_set).item(), torch.median(delay1_set).item(), torch.median(delay2_set).item()
-    delay0, delay1, delay2 = 50, 50, 50
     total_time = hold_orientation_for*2+hold_cue_for+delay0+delay1+delay2
 
     orientation_neurons = 32
     task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output)
-    model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh")
+    model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh", input_bias = not no_bias)
     
     print("Carrying out pre-analysis...")
 
@@ -84,7 +79,7 @@ if redo_preanalysis:
             output_masks).to(config.device)
     batch = generate_megabatch(task, delay0, delay1, delay2)
     print("Running the model...")
-    output = model(batch[0])
+    output = model(batch[0], noise_amplitude=noise_amplitude)
 
     ####################################
     print("Calculating data_all...")
@@ -154,7 +149,7 @@ total_time = hold_orientation_for*2+hold_cue_for+delay0+delay1+delay2
 orientation_neurons = 32
 task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output)
-model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh")
+model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh", input_bias = not no_bias)
 
 state_dict = torch.load(f"{directory}/{model_filename}")["model_state_dict"]
 model.load_state_dict(state_dict)
@@ -174,6 +169,26 @@ def make_saving_path(filename):
 def annotate_task_on_plt(plt):
     # add ticks
     plt.xticks([0, 
+                delay0,
+                delay0+hold_orientation_for, 
+                delay0+hold_orientation_for+delay1, 
+                delay0+hold_orientation_for*2+delay1,
+                delay0+hold_orientation_for*2+delay1+delay2, 
+                delay0+hold_orientation_for*2+delay1+delay2+hold_cue_for])
+    # add patches to visualize inputs
+    plt.axvspan(delay0, delay0+hold_orientation_for, facecolor="r", alpha=0.1)
+    plt.axvspan(delay0+hold_orientation_for+delay1, delay0+hold_orientation_for*2+delay1, facecolor="b", alpha=0.1)
+    plt.axvspan(delay0+hold_orientation_for*2+delay1+delay2, 
+                delay0+hold_orientation_for*2+delay1+delay2+hold_cue_for, facecolor="k", alpha=0.1)
+    # add patches to legend
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles.append(mpatches.Patch(color='r', alpha=0.3, label='O1 presented'))
+    handles.append(mpatches.Patch(color='b', alpha=0.3, label='O2 presented'))
+    handles.append(mpatches.Patch(color='k', alpha=0.3, label='cue presented')) 
+    plt.legend(handles=handles)
+def annotate_task_on_ax(plt):
+    # add ticks
+    plt.set_xticks([0, 
                 delay0,
                 delay0+hold_orientation_for, 
                 delay0+hold_orientation_for+delay1, 
@@ -369,3 +384,19 @@ def get_connplot_graph(timestep, cc_smoothing=True):
     r2_weights = [sum(distances_weights[diff])/len(distances_weights[diff]) for diff in r2_distances] 
     r2_weights_std = [np.std(distances_weights[diff]) for diff in r2_distances]
     return r1_distances, r1_weights, r1_weights_std, r2_distances, r2_weights, r2_weights_std
+
+def network_performance():
+    error = torch.sum((megabatch_output[0][megabatch_mask == 1] - megabatch_target[megabatch_mask == 1]) ** 2, dim=0) / torch.sum(megabatch_mask == 1)
+    MSE_O1 = (error[0]+error[1]).item()
+    MSE_O2 = (error[2]+error[3]).item()
+    trig = megabatch_output[0][:, t5+1:t6+1, :]
+    o1 = torch.atan2((trig[:, :, 0]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5), (trig[:, :, 1]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5)) / 2 * 180 / math.pi
+    o2 = torch.atan2((trig[:, :, 2]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5), (trig[:, :, 3]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5)) / 2 * 180 / math.pi
+    trig = megabatch_target[:, t5+1:t6+1, :]
+    o1_t = torch.atan2((trig[:, :, 0]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5), (trig[:, :, 1]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5)) / 2 * 180 / math.pi
+    o2_t = torch.atan2((trig[:, :, 2]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5), (trig[:, :, 3]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5)) / 2 * 180 / math.pi
+    error_o1 = torch.minimum(torch.minimum((o1-o1_t)**2, (o1-o1_t+180)**2), (o1-o1_t-180)**2)
+    error_o1 = torch.mean(error_o1).item()**0.5
+    error_o2 = torch.minimum(torch.minimum((o2-o2_t)**2, (o2-o2_t+180)**2), (o2-o2_t-180)**2)
+    error_o2 = torch.mean(error_o2).item()**0.5
+    return MSE_O1, MSE_O2, error_o1, error_o2
