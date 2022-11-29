@@ -80,7 +80,9 @@ def train_network(model, task, max_steps, batch_size=64,
         error = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2, dim=0) / torch.sum(
             output_mask == 1)
         error_o1 = (error[0] + error[1]).item()
-        error_o2 = (error[2] + error[3]).item()
+        if error.shape[0]>2:
+            error_o2 = (error[2] + error[3]).item()
+        else: error_o2 = 0
         error = torch.sum(error)
 
         if regularization_norm == 1:
@@ -136,7 +138,10 @@ def train_network(model, task, max_steps, batch_size=64,
             if not silent:
                 error_wo_reg = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2) / torch.sum(output_mask == 1)
                 print(f'{p} parameter updates: error = {error.item():.4g}, w/o reg {error_wo_reg.item():.4g}, o1 {error_o1:.4g}, o2 {error_o2:.4g}')
+        if p == 10000:
+            print(set_save_parameters)
         if np.isin(p, set_save_parameters):
+            print("SAVING", f'model_parameterupdate{p}.pth')
             save_network(model, dir_save_parameters + f'model_parameterupdate{p}.pth')
         if error.item() < best_network_error:
             best_network_dict = model.state_dict()

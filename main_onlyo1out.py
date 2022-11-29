@@ -47,7 +47,7 @@ init_random = abs(hash(args.random)) % 10**8
 noise = args.noise
 simple_input = args.simple_input
 simple_output = args.simple_output
-orientation_neurons = 32
+orientation_neurons = 64
 reg_lam = args.reglam
 reg_norm = args.regnorm
 hold_zero = args.hold_zero
@@ -66,10 +66,23 @@ delay1_set = torch.arange(30, 50)
 delay2_set = torch.arange(30, 50)
 
 
+task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(32, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
+                                            simple_input=simple_input, simple_output=simple_output, hold_outputs_at_zero=hold_zero)
+model_o = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh",
+                     _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o, input_bias=not no_bias)
+state_dict = torch.load(f"data/tTWOORIDO_mCTRNN_dr100_l2_la5e-05_nsi_n0.1_rM1/model_parameterupdate100000.pth")["model_state_dict"]
+model_o.load_state_dict(state_dict)
+
 task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT_O1(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output, hold_outputs_at_zero=hold_zero)
 model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh",
                      _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o, input_bias=not no_bias)
+model.fc_h2ah.weight = torch.nn.Parameter(model_o.fc_h2ah.weight.detach().clone())
+model.fc_h2y.weight = torch.nn.Parameter(model_o.fc_h2y.weight.detach().clone()[:2, :])
+model.fc_h2y.bias = torch.nn.Parameter(model_o.fc_h2y.bias.detach().clone()[:2])
+
+model.fc_x2ah.weight = torch.nn.Parameter(model_o.fc_x2ah.weight.detach().clone().repeat_interleave(2, dim=1)[:, :-1])
+model.fc_x2ah.bias = torch.nn.Parameter(model_o.fc_x2ah.bias.detach().clone())
 
 directory = f"t{task.name}_m{model.name}_dr{dim_recurrent}"
 if hold_zero:
@@ -86,13 +99,13 @@ if no_bias:
     directory += "_nb"
 directory += f"_n{noise}_r{args.random}"
 
-result = networks.train_network(model, task, max_steps=100000,
+result = networks.train_network(model, task, max_steps=10000,
                                 evaluate_plateau_every=500,
                                 batch_size=64,
                                 silent=not args.verbose,
                                 save_best_network=True,
                                 set_note_parameters=[] if not args.verbose else None,
-                                set_save_parameters=[10000, 30000, 100000],
+                                set_save_parameters=np.array([10000, 30000, 100000]),
                                 dir_save_parameters="data/"+directory,
                                 lr_max_steps=7,
                                 lr_step_at_plateau=False,

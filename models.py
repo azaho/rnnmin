@@ -209,9 +209,10 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
 
         output = self.fc_h2y(hstore)
 
-        r1 = torch.sqrt(output[:, :, 0]*output[:, :, 0]+output[:, :, 1]*output[:, :, 1])+0.0001
-        r2 = torch.sqrt(output[:, :, 2]*output[:, :, 2]+output[:, :, 3]*output[:, :, 3])+0.0001
-        div = torch.cat((r1.unsqueeze(-1), r1.unsqueeze(-1), r2.unsqueeze(-1), r2.unsqueeze(-1)), dim=2)
+        #r1 = torch.sqrt(output[:, :, 0]*output[:, :, 0]+output[:, :, 1]*output[:, :, 1])+0.0001
+        #r2 = torch.sqrt(output[:, :, 2]*output[:, :, 2]+output[:, :, 3]*output[:, :, 3])+0.0001
+        #div = torch.cat((r1.unsqueeze(-1), r1.unsqueeze(-1), r2.unsqueeze(-1), r2.unsqueeze(-1)), dim=2)
+
 
         #print(torch.any(torch.isnan(output)))
         #print(torch.any(torch.isnan(input)), torch.any(torch.isnan(output)), torch.any(torch.isnan(output/div)))

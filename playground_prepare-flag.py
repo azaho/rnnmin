@@ -382,3 +382,20 @@ def get_connplot_graph(timestep, cc_smoothing=True):
     r2_weights = [sum(distances_weights[diff])/len(distances_weights[diff]) for diff in r2_distances] 
     r2_weights_std = [np.std(distances_weights[diff]) for diff in r2_distances]
     return r1_distances, r1_weights, r1_weights_std, r2_distances, r2_weights, r2_weights_std
+
+
+def network_performance():
+    error = torch.sum((megabatch_output[0][megabatch_mask == 1] - megabatch_target[megabatch_mask == 1]) ** 2, dim=0) / torch.sum(megabatch_mask == 1)
+    MSE_O1 = (error[0]+error[1]).item()
+    MSE_O2 = (error[2]+error[3]).item()
+    trig = megabatch_output[0][:, t5+1:t6+1, :]
+    o1 = torch.atan2((trig[:, :, 0]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5), (trig[:, :, 1]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5)) / 2 * 180 / math.pi
+    o2 = torch.atan2((trig[:, :, 2]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5), (trig[:, :, 3]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5)) / 2 * 180 / math.pi
+    trig = megabatch_target[:, t5+1:t6+1, :]
+    o1_t = torch.atan2((trig[:, :, 0]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5), (trig[:, :, 1]/(trig[:, :, 0]**2+trig[:, :, 1]**2)**0.5)) / 2 * 180 / math.pi
+    o2_t = torch.atan2((trig[:, :, 2]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5), (trig[:, :, 3]/(trig[:, :, 2]**2+trig[:, :, 3]**2)**0.5)) / 2 * 180 / math.pi
+    error_o1 = torch.minimum(torch.minimum((o1-o1_t)**2, (o1-o1_t+180)**2), (o1-o1_t-180)**2)
+    error_o1 = torch.mean(error_o1).item()**0.5
+    error_o2 = torch.minimum(torch.minimum((o2-o2_t)**2, (o2-o2_t+180)**2), (o2-o2_t-180)**2)
+    error_o2 = torch.mean(error_o2).item()**0.5
+    return MSE_O1, MSE_O2, error_o1, error_o2
