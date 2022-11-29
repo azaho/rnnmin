@@ -70,7 +70,8 @@ task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(32, hold_orientation_for, hold_cue_f
                                             simple_input=simple_input, simple_output=simple_output, hold_outputs_at_zero=hold_zero)
 model_o = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh",
                      _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o, input_bias=not no_bias)
-state_dict = torch.load(f"data/tTWOORIDO_mCTRNN_dr100_l2_la5e-05_nsi_n0.1_rM1/model_parameterupdate100000.pth")["model_state_dict"]
+#state_dict = torch.load(f"data/tTWOORIDO_mCTRNN_dr100_l2_la5e-05_nsi_n0.1_rM1/model_parameterupdate100000.pth")["model_state_dict"]
+state_dict = torch.load(f"model_foro1training.pth")["model_state_dict"]
 model_o.load_state_dict(state_dict)
 
 task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT_O1(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
