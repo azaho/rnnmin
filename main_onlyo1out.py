@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 """
-python3 main.py --dim_recurrent 100 --index 0 --noise 0.1 --verbose --random OA --simple_input --simple_output --hold_zero
+python3 main_onlyo1out.py --noise 0.1 --verbose --random 1O1_64_1 --index 0 --dim_recurrent 100 --simple_output --regnorm 2 --reglam 0.00005
 """
 
 parser = argparse.ArgumentParser(description='Train networks')
@@ -100,13 +100,13 @@ if no_bias:
     directory += "_nb"
 directory += f"_n{noise}_r{args.random}"
 
-result = networks.train_network(model, task, max_steps=10000,
+result = networks.train_network(model, task, max_steps=100000,
                                 evaluate_plateau_every=500,
                                 batch_size=64,
                                 silent=not args.verbose,
                                 save_best_network=True,
                                 set_note_parameters=[] if not args.verbose else None,
-                                set_save_parameters=np.array([10000, 30000, 100000]),
+                                set_save_parameters=np.arange(11)*10000,
                                 dir_save_parameters="data/"+directory,
                                 lr_max_steps=7,
                                 lr_step_at_plateau=False,

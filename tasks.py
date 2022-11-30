@@ -223,13 +223,14 @@ class TWO_ORIENTATIONS_DOUBLE_OUTPUT_O1(TWO_ORIENTATIONS):
     # put orientation_neurons=0 for simple sin(2theta) and cos(2theta)
     def __init__(self, orientation_neurons=32, hold_orientation_for=30, hold_cue_for=30,
                  delay0_set=torch.arange(0, 31), delay1_set=torch.arange(0, 31), delay2_set=torch.arange(0, 31),
-                 simple_input=False, simple_output=False, hold_outputs_at_zero=False):
+                 simple_input=False, simple_output=False, hold_outputs_at_zero=False, ori=1):
         super().__init__(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                          simple_input=simple_input, simple_output=simple_output)
         self.dim_output = 2 if self.simple_output else orientation_neurons
         self.dim_input = orientation_neurons + 1 if not self.simple_input else 3
         self.name = "ONEORIDO"
         self.hold_outputs_at_zero = hold_outputs_at_zero
+        self.ori = ori
 
     def _make_trial(self, orientation1=None, orientation2=None, delay0=None, delay1=None, delay2=None, output_info=False):
         if orientation1 is None: orientation1 = random.random() * 180#random.randint(0, 179)
@@ -250,8 +251,12 @@ class TWO_ORIENTATIONS_DOUBLE_OUTPUT_O1(TWO_ORIENTATIONS):
         i_cues[:, -1] = 1
         to_batch = torch.cat((i_delay0, i_orientation1, i_delay1, i_orientation2, i_delay2, i_cues))
 
-        out = torch.cat((self._output_rates(orientation1, simple=self.simple_output),))
-                        #self._output_rates(orientation2, simple=self.simple_output)))
+        if self.ori == 1:
+            out = torch.cat((self._output_rates(orientation1, simple=self.simple_output),))
+                            #self._output_rates(orientation2, simple=self.simple_output)))
+        else:
+            out = torch.cat((self._output_rates(orientation2, simple=self.simple_output),))
+                            #self._output_rates(orientation2, simple=self.simple_output)))
         out = out.repeat(self.hold_cue_for, 1)
 
         to_batch_labels = torch.cat((torch.zeros(self.hold_orientation_for * 2 + delay0 + delay1 + delay2, self.dim_output), out))

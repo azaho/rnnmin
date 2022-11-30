@@ -12,7 +12,8 @@ import numpy as np
 import torch
 
 """
-python3 main.py --noise 0.1 --verbose --random 64_1 --index 0 --dim_recurrent 100 --simple_output --regnorm 2 --reglam 0.00005 --orientation_neurons 64
+python3 main_onlyo2out.py --noise 0.1 --verbose --random 2O2_64_1 --index 0 --dim_recurrent 100 --simple_output --regnorm 2 --reglam 0.00005
+
 """
 
 parser = argparse.ArgumentParser(description='Train networks')
@@ -40,8 +41,6 @@ parser.add_argument('--no_bias', action="store_true",
                     help='No bias from input?')
 parser.add_argument('--s_n_o', action="store_true",
                     help='SCUFFED: normalize networks outputs?')
-parser.add_argument('--orientation_neurons', type=int,
-                    help='no orientation selective neurons', default=32)
 args = parser.parse_args()
 dim_recurrent = args.dim_recurrent
 index = args.index
@@ -49,7 +48,7 @@ init_random = abs(hash(args.random)) % 10**8
 noise = args.noise
 simple_input = args.simple_input
 simple_output = args.simple_output
-orientation_neurons = args.orientation_neurons
+orientation_neurons = 64
 reg_lam = args.reglam
 reg_norm = args.regnorm
 hold_zero = args.hold_zero
@@ -68,10 +67,24 @@ delay1_set = torch.arange(30, 50)
 delay2_set = torch.arange(30, 50)
 
 
-task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
+task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(32, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output, hold_outputs_at_zero=hold_zero)
+model_o = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh",
+                     _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o, input_bias=not no_bias)
+#state_dict = torch.load(f"data/tTWOORIDO_mCTRNN_dr100_l2_la5e-05_nsi_n0.1_rM1/model_parameterupdate100000.pth")["model_state_dict"]
+state_dict = torch.load(f"model_foro1training.pth")["model_state_dict"]
+model_o.load_state_dict(state_dict)
+
+task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT_O1(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
+                                            simple_input=simple_input, simple_output=simple_output, hold_outputs_at_zero=hold_zero, ori=2)
 model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh",
                      _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o, input_bias=not no_bias)
+model.fc_h2ah.weight = torch.nn.Parameter(model_o.fc_h2ah.weight.detach().clone())
+model.fc_h2y.weight = torch.nn.Parameter(model_o.fc_h2y.weight.detach().clone()[2:, :])
+model.fc_h2y.bias = torch.nn.Parameter(model_o.fc_h2y.bias.detach().clone()[2:])
+
+model.fc_x2ah.weight = torch.nn.Parameter(model_o.fc_x2ah.weight.detach().clone().repeat_interleave(2, dim=1)[:, :-1])
+model.fc_x2ah.bias = torch.nn.Parameter(model_o.fc_x2ah.bias.detach().clone())
 
 directory = f"t{task.name}_m{model.name}_dr{dim_recurrent}"
 if hold_zero:
