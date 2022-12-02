@@ -52,7 +52,6 @@ if redo_preanalysis:
     
     total_time = hold_orientation_for*2+hold_cue_for+delay0+delay1+delay2
 
-    orientation_neurons = 32
     task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output)
     model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh", input_bias = not no_bias)
@@ -146,7 +145,6 @@ delay2 = j["delay2"]
 sor = j["sor"]
 total_time = hold_orientation_for*2+hold_cue_for+delay0+delay1+delay2
 
-orientation_neurons = 32
 task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output)
 model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="retanh", input_bias = not no_bias)
