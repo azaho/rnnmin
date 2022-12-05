@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 """
-python3 main.py --dim_recurrent 100 --index 0 --noise 0.1 --verbose --random OA --simple_input --simple_output --hold_zero
+python3 main_hd_train.py --noise 0.1 --verbose --random X --index 0 --dim_recurrent 100 --simple_output --regnorm 2 --reglam 0.00005
 """
 
 parser = argparse.ArgumentParser(description='Train networks')
@@ -77,13 +77,13 @@ model_filename = f"model_hd.pth"
 state_dict = torch.load(f"data/{model_filename}")["model_state_dict"]
 model.load_state_dict(state_dict)
 
-result = networks.train_network(model, task, max_steps=100000,
+result = networks.train_network(model, task, max_steps=200,
                                 evaluate_plateau_every=500,
                                 batch_size=64,
                                 silent=not args.verbose,
                                 save_best_network=True,
                                 set_note_parameters=[] if not args.verbose else None,
-                                set_save_parameters=[100000],
+                                set_save_parameters=[200],
                                 dir_save_parameters="data/"+directory,
                                 lr_max_steps=7,
                                 lr_step_at_plateau=False,
