@@ -299,8 +299,8 @@ def get_tuning_heatmaps(timestep, timestep_description, data_all=None, sor_i=meg
         #a.set_title(sor_i[i])
     plt.tight_layout()
     st = fig.suptitle(f"Tuning to orientations {timestep_description}", fontsize=20)
-    fig.supxlabel('Orientation2 (0 to 180 deg)', fontsize=14)
-    fig.supylabel('Orientation1 (0 to 180 deg)', fontsize=14)
+    fig.supxlabel('Orientation2 (0 to 180 deg)', fontsize=20)
+    fig.supylabel('Orientation1 (0 to 180 deg)', fontsize=20)
     fig.subplots_adjust(top=0.95, left=0.04, bottom=0.04)
     return fig
 def get_tuning_curves(timestep, timestep_description, data_all=None, sor_i=megabatch_tuningindices[-1]):
@@ -326,22 +326,22 @@ def get_tuning_curves(timestep, timestep_description, data_all=None, sor_i=megab
         y = torch.mean(data_all[timestep][sor_i][i], axis=1).detach().numpy()
         e = torch.std(data_all[timestep][sor_i][i], dim=1).detach().numpy()
         markers, caps, bars = a.errorbar(x, y, e, fmt="r", ecolor="r")
-        [bar.set_alpha(0.05) for bar in bars]
+        [bar.set_alpha(0.05 * ORI_RES) for bar in bars]
         [cap.set_alpha(0) for cap in caps]
 
         x = ORI_SET
         y = torch.mean(data_all[timestep][sor_i][i], axis=0).detach().numpy()
         e = torch.std(data_all[timestep][sor_i][i], dim=0).detach().numpy()
         markers, caps, bars = a.errorbar(x, y, e, fmt="k", ecolor="k")
-        [bar.set_alpha(0.05) for bar in bars]
+        [bar.set_alpha(0.05 * ORI_RES) for bar in bars]
         [cap.set_alpha(0) for cap in caps]
 
         a.set_ylim(0, 1)
     plt.tight_layout()
     st = fig.suptitle(f"Tuning to orientations {timestep_description}", fontsize=20)
     #st.set_y(0.95)
-    fig.supxlabel('Orientation (0 to 180 deg), orientation1 (red) and orientation2 (black)', fontsize=14)
-    fig.supylabel('Average activation (0 to 1), with standard deviation', fontsize=14)
+    fig.supxlabel('Orientation (0 to 180 deg), orientation1 (red) and orientation2 (black)', fontsize=20)
+    fig.supylabel('Average activation (0 to 1), with standard deviation', fontsize=20)
     fig.subplots_adjust(top=0.95, left=0.04, bottom=0.04)
     return fig
 

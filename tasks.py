@@ -219,6 +219,55 @@ class TWO_ORIENTATIONS_DOUBLE_OUTPUT(TWO_ORIENTATIONS):
         else:
             return to_batch, to_batch_labels, to_mask
 
+class TWO_ORIENTATIONS_DOUBLE_OUTPUT_O1Z(TWO_ORIENTATIONS):
+    # put orientation_neurons=0 for simple sin(2theta) and cos(2theta)
+    def __init__(self, orientation_neurons=32, hold_orientation_for=30, hold_cue_for=30,
+                 delay0_set=torch.arange(0, 31), delay1_set=torch.arange(0, 31), delay2_set=torch.arange(0, 31),
+                 simple_input=False, simple_output=False, hold_outputs_at_zero=False):
+        super().__init__(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
+                         simple_input=simple_input, simple_output=simple_output)
+        self.dim_output = 4 if self.simple_output else orientation_neurons*2
+        self.dim_input = orientation_neurons + 1 if not self.simple_input else 3
+        self.name = "TWOORIDO"
+        self.hold_outputs_at_zero = hold_outputs_at_zero
+
+    def _make_trial(self, orientation1=None, orientation2=None, delay0=None, delay1=None, delay2=None, output_info=False):
+        if orientation1 is None: orientation1 = random.random() * 180#random.randint(0, 179)
+        if orientation2 is None: orientation2 = random.random() * 180#random.randint(0, 179)
+        if delay0 is None:
+            delay0 = self.delay0_set[random.randint(0, self.delay0_set.shape[0]-1)]
+        if delay1 is None:
+            delay1 = self.delay1_set[random.randint(0, self.delay1_set.shape[0]-1)]
+        if delay2 is None:
+            delay2 = self.delay2_set[random.randint(0, self.delay2_set.shape[0]-1)]
+
+        i_orientation1 = self._input_rates(orientation1, simple=self.simple_input).repeat(self.hold_orientation_for, 1)
+        i_orientation2 = self._input_rates(orientation2, simple=self.simple_input).repeat(self.hold_orientation_for, 1)
+        i_delay0 = torch.zeros((delay0, self.dim_input))
+        i_delay1 = torch.zeros((delay1, self.dim_input))
+        i_delay2 = torch.zeros((delay2, self.dim_input))
+        i_cues = torch.zeros((self.hold_cue_for, self.dim_input))
+        i_cues[:, -1] = 1
+        to_batch = torch.cat((i_delay0, i_orientation1, i_delay1, i_orientation2, i_delay2, i_cues))
+
+        out = torch.cat((self._output_rates(orientation1, simple=self.simple_output),
+                        self._output_rates(orientation2, simple=self.simple_output)*0))
+        out = out.repeat(self.hold_cue_for, 1)
+
+        to_batch_labels = torch.cat((torch.zeros(self.hold_orientation_for * 2 + delay0 + delay1 + delay2, self.dim_output), out))
+
+        if self.hold_outputs_at_zero:
+            to_mask = torch.cat((torch.ones((self.hold_orientation_for * 2 + delay0 + delay1 + delay2,)),
+                                 torch.ones((self.hold_cue_for,))))
+        else:
+            to_mask = torch.cat((torch.zeros((self.hold_orientation_for * 2 + delay0 + delay1 + delay2,)),
+                                 torch.ones((self.hold_cue_for,))))
+
+        if output_info:
+            return to_batch, to_batch_labels, to_mask, (orientation1, orientation2, delay0, delay1, delay2)
+        else:
+            return to_batch, to_batch_labels, to_mask
+
 class TWO_ORIENTATIONS_DOUBLE_OUTPUT_O1(TWO_ORIENTATIONS):
     # put orientation_neurons=0 for simple sin(2theta) and cos(2theta)
     def __init__(self, orientation_neurons=32, hold_orientation_for=30, hold_cue_for=30,

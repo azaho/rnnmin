@@ -124,6 +124,11 @@ def train_network(model, task, max_steps, batch_size=64,
         # Calling the step function on an Optimizer makes an update to its parameters
         optimizer.step()
 
+        # scuffed: remove r1-r2 connections
+        with torch.no_grad():
+            model.fc_h2ah.weight[:46, :][:, -45:] = 0
+            model.fc_h2ah.weight[-45:, :][:, :46] = 0
+
         if store_gradient_norms:
             gradient = []  # store all gradients
             for param in model.parameters():  # model.parameters include those defined in __init__ even if they are not used in forward pass

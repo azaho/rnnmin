@@ -325,14 +325,14 @@ def get_tuning_curves(timestep, timestep_description, data_all=None, sor_i=megab
         y = torch.mean(data_all[timestep][sor_i][i], axis=1).detach().numpy()
         e = torch.std(data_all[timestep][sor_i][i], dim=1).detach().numpy()
         markers, caps, bars = a.errorbar(x, y, e, fmt="r", ecolor="r")
-        [bar.set_alpha(0.05) for bar in bars]
+        [bar.set_alpha(0.05 * ORI_RES) for bar in bars]
         [cap.set_alpha(0) for cap in caps]
 
         x = ORI_SET
         y = torch.mean(data_all[timestep][sor_i][i], axis=0).detach().numpy()
         e = torch.std(data_all[timestep][sor_i][i], dim=0).detach().numpy()
         markers, caps, bars = a.errorbar(x, y, e, fmt="k", ecolor="k")
-        [bar.set_alpha(0.05) for bar in bars]
+        [bar.set_alpha(0.05 * ORI_RES) for bar in bars]
         [cap.set_alpha(0) for cap in caps]
 
         a.set_ylim(0, 1)

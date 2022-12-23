@@ -77,13 +77,13 @@ model_filename = f"model_hd.pth"
 state_dict = torch.load(f"data/{model_filename}")["model_state_dict"]
 model.load_state_dict(state_dict)
 
-result = networks.train_network(model, task, max_steps=200,
+result = networks.train_network(model, task, max_steps=100,
                                 evaluate_plateau_every=500,
                                 batch_size=64,
                                 silent=not args.verbose,
                                 save_best_network=True,
                                 set_note_parameters=[] if not args.verbose else None,
-                                set_save_parameters=[200],
+                                set_save_parameters=[100],
                                 dir_save_parameters="data/"+directory,
                                 lr_max_steps=7,
                                 lr_step_at_plateau=False,
