@@ -42,6 +42,8 @@ parser.add_argument('--s_n_o', action="store_true",
                     help='SCUFFED: normalize networks outputs?')
 parser.add_argument('--orientation_neurons', type=int,
                     help='no orientation selective neurons', default=32)
+parser.add_argument('--tanh', action="store_true",
+                    help='use tanh?')
 args = parser.parse_args()
 dim_recurrent = args.dim_recurrent
 index = args.index
@@ -54,6 +56,7 @@ reg_lam = args.reglam
 reg_norm = args.regnorm
 hold_zero = args.hold_zero
 no_bias = args.no_bias
+tanh = args.tanh
 
 random.seed(init_random)
 torch.manual_seed(init_random)
@@ -70,7 +73,7 @@ delay2_set = torch.arange(30, 50)
 
 task = tasks.TWO_ORIENTATIONS_DOUBLE_OUTPUT(orientation_neurons, hold_orientation_for, hold_cue_for, delay0_set, delay1_set, delay2_set,
                                             simple_input=simple_input, simple_output=simple_output, hold_outputs_at_zero=hold_zero)
-model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="tanh",
+model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, nonlinearity="tanh" if tanh else "retanh",
                      _SCUFFED_NORMALIZE_OUTPUTS=args.s_n_o, input_bias=not no_bias)
 
 directory = f"t{task.name}_m{model.name}_dr{dim_recurrent}"
@@ -86,6 +89,8 @@ if args.s_n_o:
     directory += "_sno"
 if no_bias:
     directory += "_nb"
+if tanh:
+    directory += "_tanh"
 directory += f"_n{noise}_r{args.random}"
 
 result = networks.train_network(model, task, max_steps=100000,
