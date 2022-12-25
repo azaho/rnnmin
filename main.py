@@ -44,6 +44,8 @@ parser.add_argument('--orientation_neurons', type=int,
                     help='no orientation selective neurons', default=32)
 parser.add_argument('--tanh', action="store_true",
                     help='use tanh?')
+parser.add_argument('--second_noise', action="store_true",
+                    help='noise only during second delay?')
 args = parser.parse_args()
 dim_recurrent = args.dim_recurrent
 index = args.index
@@ -57,6 +59,7 @@ reg_norm = args.regnorm
 hold_zero = args.hold_zero
 no_bias = args.no_bias
 tanh = args.tanh
+second_noise = args.second_noise
 
 random.seed(init_random)
 torch.manual_seed(init_random)
@@ -110,7 +113,7 @@ result = networks.train_network(model, task, max_steps=100000,
                                 noise_amplitude=noise,
                                 regularization_lambda=reg_lam,
                                 regularization_norm=reg_norm if reg_norm>0 else None,
-                                clip_gradients=True)#3e-3)
+                                clip_gradients=True, second_noise=second_noise)#3e-3)
 result["training_time"] = time.time() - start_time
 result["error_store"] = result["error_store"].tolist()
 

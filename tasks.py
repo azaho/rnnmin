@@ -149,7 +149,7 @@ class TWO_ORIENTATIONS(Task):
         else:
             return to_batch, to_batch_labels, to_mask
 
-    def generate_batch(self, batch_size=64):
+    def generate_batch(self, batch_size=64, output_delays=False):
         batch = []
         batch_labels = []
         output_masks = []
@@ -161,8 +161,12 @@ class TWO_ORIENTATIONS(Task):
             batch.append(to_batch.unsqueeze(0))
             batch_labels.append(to_batch_labels.unsqueeze(0))
             output_masks.append(to_mask.unsqueeze(0))
-        return torch.cat(batch).to(config.device), torch.cat(batch_labels).to(config.device), torch.cat(
-            output_masks).to(config.device)
+        if output_delays:
+            return torch.cat(batch).to(config.device), torch.cat(batch_labels).to(config.device), torch.cat(
+                output_masks).to(config.device), delay0, delay1, delay2
+        else:
+            return torch.cat(batch).to(config.device), torch.cat(batch_labels).to(config.device), torch.cat(
+                output_masks).to(config.device)
 
     def assess_accuracy(self, model, batch_size=64):
         batch = self.generate_batch(batch_size=batch_size)

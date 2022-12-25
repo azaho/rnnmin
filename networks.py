@@ -32,7 +32,8 @@ def train_network(model, task, max_steps, batch_size=64,
                   start_at_best_network_after_lr_step=True,
                   stop_at_last_plateau=True,
                   regularization_lambda=0.1,
-                  regularization_norm=None):  # stop after final learning rate step if plateau reached again
+                  regularization_norm=None,
+                  second_noise=False):  # stop after final learning rate step if plateau reached again
     if optimizer == "Adam": optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # lr = 1e-3 default
     assert (type(optimizer) is not str), f"{optimizer} is not supported by train_network (train.py)"
 
@@ -69,10 +70,19 @@ def train_network(model, task, max_steps, batch_size=64,
             i = p % dataset_to_use[0].shape[0]
             input, target, output_mask = dataset_to_use[0][i], dataset_to_use[1][i], dataset_to_use[2][i]
         else:
-            input, target, output_mask = task.generate_batch(batch_size=batch_size)
+            input, target, output_mask, d0, d1, d2 = task.generate_batch(batch_size=batch_size, output_delays=True)
 
         if not add_noise: noise_amplitude = 0
-        output, h = model(input, noise_amplitude=noise_amplitude)
+        t_bhneverlearn = noise_amplitude * torch.randn(model.get_noise_shape(input))
+        bhneverlearn = torch.zeros(t_bhneverlearn.shape)
+        t1 = d0+task.hold_orientation_for+d1+task.hold_orientation_for
+        t2 = t1 + d2
+        if second_noise:
+            bhneverlearn[:, t1:t2, :] = t_bhneverlearn[:, t1:t2, :]
+        else:
+            bhneverlearn = t_bhneverlearn
+        output, h = model._forward(input, bhneverlearn=bhneverlearn)
+
 
         # TODO: add criterion
         #error = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2) / torch.sum(

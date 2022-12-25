@@ -24,7 +24,7 @@ model = models.CTRNN(task=task, dim_recurrent=dim_recurrent, input_bias = not no
 directory = f"t{task.name}_m{model.name}_dr{dim_recurrent}"
 if hold_zero:
     directory += "_hz"
-if reg_norm > 0:
+if reg_lam > 0:
     directory += f"_l{reg_lam}_la{reg_norm}"
 if not simple_input:
     directory += "_nsi"
@@ -291,7 +291,7 @@ def get_tuning_heatmaps(timestep, timestep_description, data_all=None, sor_i=meg
         #a.axis('off')
     for i in range(n):
         a = ax[i // sqt][i % sqt]
-        a.imshow(data_all[timestep][sor_i][i].detach().numpy(), vmin=0, vmax=1)
+        a.imshow(data_all[timestep][sor_i][i].detach().numpy(), vmin=0, vmax=1, origin='lower')
 
         #uncomment to see which unit has which id
         #a.title.set_visible(True)
