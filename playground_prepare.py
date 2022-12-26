@@ -78,7 +78,16 @@ if redo_preanalysis:
             output_masks).to(config.device)
     batch = generate_megabatch(task, delay0, delay1, delay2)
     print("Running the model...")
-    output = model(batch[0], noise_amplitude=noise_amplitude)
+    #output = model(batch[0], noise_amplitude=noise_amplitude)
+    t_bhneverlearn = noise_amplitude * torch.randn(model.get_noise_shape(batch[0]))
+    bhneverlearn = torch.zeros(t_bhneverlearn.shape)
+    t1 = delay0+hold_orientation_for+delay1+hold_orientation_for
+    t2 = t1 + delay2
+    if second_noise:
+        bhneverlearn[:, t1:t2, :] = t_bhneverlearn[:, t1:t2, :]
+    else:
+        bhneverlearn = t_bhneverlearn
+    output = model._forward(batch[0], bhneverlearn=bhneverlearn)
 
     ####################################
     print("Calculating data_all...")

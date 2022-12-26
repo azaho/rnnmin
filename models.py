@@ -11,20 +11,20 @@ class Model(nn.Module):
         super().__init__()
         self.name = name
 
-    def forward(self, input, noise=None, noise_amplitude=None, save_preactivations=False):
+    def forward(self, tinput, noise=None, noise_amplitude=None, save_preactivations=False):
         if noise_amplitude is None:
             noise_amplitude = 0
         if noise is None:
-            noise = noise_amplitude * torch.randn(self.get_noise_shape(input)).to(config.device)
+            noise = noise_amplitude * torch.randn(self.get_noise_shape(tinput)).to(config.device)
         if save_preactivations:
-            return self._forward(input.to(config.device), noise, save_preactivations=True)
+            return self._forward(tinput.to(config.device), noise, save_preactivations=True)
         else:
-            return self._forward(input.to(config.device), noise)
+            return self._forward(tinput.to(config.device), noise)
 
-    def _forward(self, input, noise, save_preactivations=False):
+    def _forward(self, tinput, noise, save_preactivations=False):
         pass
 
-    def get_noise_shape(self, input):
+    def get_noise_shape(self, tinput):
         return 1
 
 """
@@ -55,7 +55,7 @@ class CARDS_WITH_CLUES_DT_RNN(Model):
     def _forward(self, x, noise):
         batch_size = x.size(0)
 
-        # Next, using the output of CNN as input for RNN
+        # Next, using the output of CNN as tinput for RNN
         hidden, out = self.rnn(x)
 
         # Reshaping the outputs such that it can be fit into the fully connected layer
@@ -156,23 +156,23 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
 
         self.to(config.device)
 
-    def get_noise_shape(self, input):
-        return (input.shape[0], input.shape[1], self.dim_recurrent)
+    def get_noise_shape(self, tinput):
+        return (tinput.shape[0], tinput.shape[1], self.dim_recurrent)
 
     # output y for all numT timesteps   
-    def _forward(self, input,
+    def _forward(self, tinput,
                  bhneverlearn,
                  save_preactivations=False,
                  reset_units=None,
-                 reset_to="mean"):  # nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-        if len(input.shape) == 2:  # if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
-            input = input[None, :, :]  # (numtrials, numT, dim_input)
+                 reset_to="mean"):  # nn.Linear expects tinputs of size (numtrials, *, dim_input) where * is optional and could be numT
+        if len(tinput.shape) == 2:  # if tinput has size (numT, dim_input) because there is only a single trial then add a singleton dimension
+            tinput = tinput[None, :, :]  # (numtrials, numT, dim_input)
             bhneverlearn = bhneverlearn[None, :, :]  # (numtrials, numT, dim_recurrent)
 
         dt = self.dt
         Tau = self.Tau
-        # numtrials, numT, dim_input = input.size()# METHOD 1
-        numtrials, numT, dim_input = input.shape  # METHOD 2
+        # numtrials, numT, dim_input = tinput.size()# METHOD 1
+        numtrials, numT, dim_input = tinput.shape  # METHOD 2
         # dim_recurrent = self.fc_h2y.weight.size(1)# y = Wyh @ h + by, METHOD 1
         # dim_recurrent = self.fc_h2y.weight.shape[1]# y = Wyh @ h + by, METHOD 2
         ah = self.ah0.repeat(numtrials,
@@ -180,14 +180,14 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
         # if self.LEARN_ah0:
         #    ah = self.ah0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
         # else:
-        #    ah = input.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor.
+        #    ah = tinput.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor.
         # h = self.nonlinearity(ah)# h0
         h = computef(ah, self.nonlinearity)  # h0, this implementation doesn't add noise to h0
         hstore = []  # (numtrials, numT, dim_recurrent)
         pastore = []
         for t in range(numT):
             ah = ah + (dt / Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(
-                input[:, t]))  # ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
+                tinput[:, t]))  # ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
             # h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent)
 
             if reset_units is not None:
@@ -204,7 +204,7 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
             h = computef(ah, self.nonlinearity) + bhneverlearn[:, t, :]  # bhneverlearn has shape (numtrials, numT, dim_recurrent)
             hstore.append(h)  # hstore += [h]
         hstore = torch.stack(hstore,
-                             dim=1)  # (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions
+                             dim=1)  # (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects tinputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions
         pastore = torch.stack(pastore, dim=1)
 
         output = self.fc_h2y(hstore)
@@ -215,7 +215,7 @@ class CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
 
 
         #print(torch.any(torch.isnan(output)))
-        #print(torch.any(torch.isnan(input)), torch.any(torch.isnan(output)), torch.any(torch.isnan(output/div)))
+        #print(torch.any(torch.isnan(tinput)), torch.any(torch.isnan(output)), torch.any(torch.isnan(output/div)))
         #exit()
         #print(output)
         if self._SCUFFED_NORMALIZE_OUTPUTS:
@@ -362,21 +362,21 @@ class LOWRANK_CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
 
         self.to(config.device)
 
-    def get_noise_shape(self, input):
-        return (input.shape[0], input.shape[1], self.dim_recurrent)
+    def get_noise_shape(self, tinput):
+        return (tinput.shape[0], tinput.shape[1], self.dim_recurrent)
 
     # output y for all numT timesteps
-    def _forward(self, input,
+    def _forward(self, tinput,
                  bhneverlearn,
-                 save_preactivations=False):  # nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-        if len(input.shape) == 2:  # if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
-            input = input[None, :, :]  # (numtrials, numT, dim_input)
+                 save_preactivations=False):  # nn.Linear expects tinputs of size (numtrials, *, dim_input) where * is optional and could be numT
+        if len(tinput.shape) == 2:  # if tinput has size (numT, dim_input) because there is only a single trial then add a singleton dimension
+            tinput = tinput[None, :, :]  # (numtrials, numT, dim_input)
             bhneverlearn = bhneverlearn[None, :, :]  # (numtrials, numT, dim_recurrent)
 
         dt = self.dt
         Tau = self.Tau
-        # numtrials, numT, dim_input = input.size()# METHOD 1
-        numtrials, numT, dim_input = input.shape  # METHOD 2
+        # numtrials, numT, dim_input = tinput.size()# METHOD 1
+        numtrials, numT, dim_input = tinput.shape  # METHOD 2
         # dim_recurrent = self.fc_h2y.weight.size(1)# y = Wyh @ h + by, METHOD 1
         # dim_recurrent = self.fc_h2y.weight.shape[1]# y = Wyh @ h + by, METHOD 2
         ah = self.ah0.repeat(numtrials,
@@ -384,21 +384,21 @@ class LOWRANK_CTRNN(Model):  # class CTRNN inherits from class torch.nn.Module
         # if self.LEARN_ah0:
         #    ah = self.ah0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
         # else:
-        #    ah = input.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor.
+        #    ah = tinput.new_zeros(numtrials, dim_recurrent)# tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor.
         # h = self.nonlinearity(ah)# h0
         h = computef(ah, self.nonlinearity)  # h0, this implementation doesn't add noise to h0
         hstore = []  # (numtrials, numT, dim_recurrent)
         pastore = []
         for t in range(numT):
             ah = ah + (dt / Tau) * (-ah + self.fc_h2ah(h) + self.fc_x2ah(
-                input[:, t]))  # ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
+                tinput[:, t]))  # ah[t] = ah[t-1] + (dt/Tau) * (-ah[t-1] + Wahh @ h[t−1] + 􏰨Wahx @ x[t] +  bah)
             # h = self.nonlinearity(ah)  +  bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent)
             pastore.append(ah)
             h = computef(ah, self.nonlinearity) + bhneverlearn[:, t,
                                                   :]  # bhneverlearn has shape (numtrials, numT, dim_recurrent)
             hstore.append(h)  # hstore += [h]
         hstore = torch.stack(hstore,
-                             dim=1)  # (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions
+                             dim=1)  # (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects tinputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions
         pastore = torch.stack(pastore, dim=1)
         if save_preactivations:
             return self.fc_h2y(hstore), hstore, pastore  # (numtrials, numT, dim_output/dim_recurrent) tensor, y = Wyh @ h + by
@@ -450,7 +450,7 @@ class LowPassCTRNN(nn.Module):# class LowPassCTRNN inherits from class torch.nn.
         if by is not None:
             self.fc_r2y.bias = torch.nn.Parameter(torch.squeeze(by))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         #------------------------------
-        # initialize input(Wrx), recurrent(Wrr), output(Wyr) weights 
+        # initialize tinput(Wrx), recurrent(Wrr), output(Wyr) weights 
         if Wrx is not None:
             self.fc_x2r.weight = torch.nn.Parameter(Wrx)# Wrx @ x + br
         if Wrr is not None:
@@ -477,22 +477,22 @@ class LowPassCTRNN(nn.Module):# class LowPassCTRNN inherits from class torch.nn.
         
         
     # output y for all numT timesteps   
-    def forward(self, input, brneverlearn):# nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-        if len(input.shape)==2:# if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
-            input = input[None,:,:]# (numtrials, numT, dim_input)
+    def forward(self, tinput, brneverlearn):# nn.Linear expects tinputs of size (numtrials, *, dim_input) where * is optional and could be numT
+        if len(tinput.shape)==2:# if tinput has size (numT, dim_input) because there is only a single trial then add a singleton dimension
+            tinput = tinput[None,:,:]# (numtrials, numT, dim_input)
             brneverlearn = brneverlearn[None,:,:]# (numtrials, numT, dim_recurrent)
         dt = self.dt
         Tau = self.Tau
-        #numtrials, numT, dim_input = input.size()# METHOD 1
-        numtrials, numT, dim_input = input.shape# METHOD 2
+        #numtrials, numT, dim_input = tinput.size()# METHOD 1
+        numtrials, numT, dim_input = tinput.shape# METHOD 2
         #dim_recurrent = self.fc_r2y.weight.size(1)# y = Wyr @ r + by, METHOD 1
         #dim_recurrent = self.fc_r2y.weight.shape[1]# y = Wyr @ r + by, METHOD 2
         r = self.r0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for r, not different values for each trial
         rstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):
-            r = r + (dt/Tau) * (-r + computef( self.fc_r2r(r) + self.fc_x2r(input[:, t]), self.nonlinearity)  + brneverlearn[:,t,:])# brneverlearn has shape (numtrials, numT, dim_recurrent) 
+            r = r + (dt/Tau) * (-r + computef( self.fc_r2r(r) + self.fc_x2r(tinput[:, t]), self.nonlinearity)  + brneverlearn[:,t,:])# brneverlearn has shape (numtrials, numT, dim_recurrent) 
             rstore.append(r)# rstore += [r]
-        rstore = torch.stack(rstore,dim=1)# (numtrials, numT, dim_recurrent), each appended r is stored in rstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions  
+        rstore = torch.stack(rstore,dim=1)# (numtrials, numT, dim_recurrent), each appended r is stored in rstore[:,i,:], nn.Linear expects tinputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions  
         return self.fc_r2y(rstore), rstore# (numtrials, numT, dim_output/dim_recurrent) tensor, y = Wyr @ r + by
  
 
@@ -566,9 +566,9 @@ def computef(IN,string,*args):# ags[0] is the slope for string='tanhwithslope'
 
 
 #-----------------------------------------------------------------------------
-#    compute derivative of nonlinearity with respect to its input dF(x)/dx
+#    compute derivative of nonlinearity with respect to its tinput dF(x)/dx
 #-----------------------------------------------------------------------------
-def computedf(F,string,*args):# input has already been passed through nonlinearity, F = f(x). ags[0] is the slope for string='tanhwithslope'
+def computedf(F,string,*args):# tinput has already been passed through nonlinearity, F = f(x). ags[0] is the slope for string='tanhwithslope'
     if string == 'linear':
         dFdx = torch.ones(F.shape)
         return dFdx
@@ -651,26 +651,26 @@ class GRU(nn.Module):# class LSTM inherits from class torch.nn.Module
         self.nonlinearity = nonlinearity
         
     # output y for all numT timesteps
-    # nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-    def forward(self, input, bhneverlearn):# input has size (numtrials, numT, dim_input), nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-        if len(input.shape)==2:# if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
-            input = input[None,:,:]# (numtrials, numT, dim_input)
+    # nn.Linear expects tinputs of size (numtrials, *, dim_input) where * is optional and could be numT
+    def forward(self, tinput, bhneverlearn):# tinput has size (numtrials, numT, dim_input), nn.Linear expects tinputs of size (numtrials, *, dim_input) where * is optional and could be numT
+        if len(tinput.shape)==2:# if tinput has size (numT, dim_input) because there is only a single trial then add a singleton dimension
+            tinput = tinput[None,:,:]# (numtrials, numT, dim_input)
             bhneverlearn = bhneverlearn[None,:,:]# (numtrials, numT, dim_recurrent)
         
-        numtrials, numT, dim_input = input.shape
+        numtrials, numT, dim_input = tinput.shape
         dim_recurrent = self.fc_r_x2r.weight.shape[0]# Wrx @ x
         if self.LEARN_h0:
             h = self.h0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
         else:
-            h = input.new_zeros(numtrials, dim_recurrent)# (numtrials, dim_recurrent) tensor, tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
+            h = tinput.new_zeros(numtrials, dim_recurrent)# (numtrials, dim_recurrent) tensor, tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
         hstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):# t=0,1,2,...,numT-1
-            r = torch.sigmoid(self.fc_r_x2r(input[:, t]) + self.fc_r_h2r(h))# input[:,t].size() is (numtrials, dim_input)
-            z = torch.sigmoid(self.fc_z_x2z(input[:, t]) + self.fc_z_h2z(h))# input[:,t].size() is (numtrials, dim_input)
-            n = computef(self.fc_n_x2n(input[:, t]) + r * self.fc_n_h2n(h), self.nonlinearity)# input[:,t].size() is (numtrials, dim_input)
+            r = torch.sigmoid(self.fc_r_x2r(tinput[:, t]) + self.fc_r_h2r(h))# tinput[:,t].size() is (numtrials, dim_input)
+            z = torch.sigmoid(self.fc_z_x2z(tinput[:, t]) + self.fc_z_h2z(h))# tinput[:,t].size() is (numtrials, dim_input)
+            n = computef(self.fc_n_x2n(tinput[:, t]) + r * self.fc_n_h2n(h), self.nonlinearity)# tinput[:,t].size() is (numtrials, dim_input)
             h = (1-z) * n + z * h + bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent)
             hstore.append(h)# hstore += [h]
-        hstore = torch.stack(hstore,dim=1)# (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions  
+        hstore = torch.stack(hstore,dim=1)# (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects tinputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions  
         return self.fc_y_h2y(hstore), hstore# (numtrials, numT, dim_output/dim_recurrent) 
     
     # to get the output we could
@@ -681,10 +681,10 @@ class GRU(nn.Module):# class LSTM inherits from class torch.nn.Module
         
 #%%##############################################################################
 # vanilla LSTM with no peephole connections
-# i[t] = sigmoid(  Wih @ h[t−1] + 􏰨Wix @ x[t] + bi􏰩  )  input gate
+# i[t] = sigmoid(  Wih @ h[t−1] + 􏰨Wix @ x[t] + bi􏰩  )  tinput gate
 # o[t] = sigmoid(  Woh @ h[t−1] + 􏰨Wox @ x[t] + bo􏰩  )  output gate
 # f[t] = sigmoid(  Wfh @ h[t−1] + 􏰨Wfx @ x[t] + bf􏰩  )  forget gate
-# z[t] =    tanh(  Wzh @ h[t−1] + 􏰨Wzx @ x[t] + bz􏰩  )  cell input/candidate cell values
+# z[t] =    tanh(  Wzh @ h[t−1] + 􏰨Wzx @ x[t] + bz􏰩  )  cell tinput/candidate cell values
 # c[t] = i[t]*z[t] + f[t]*c[t-1]         cell state
 # h[t] = o[t]*tanh(c[t]) + bhneverlearn  cell output
 # y[t] = Wyh @ h[t] + by                 RNN output
@@ -710,7 +710,7 @@ class LSTM(nn.Module):# class LSTM inherits from class torch.nn.Module
         self.fc_o_x2o.bias = torch.nn.Parameter(torch.zeros(dim_recurrent))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         self.fc_z_x2z.bias = torch.nn.Parameter(torch.zeros(dim_recurrent))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         self.fc_y_h2y.bias = torch.nn.Parameter(torch.zeros(dim_output))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
-        # initialize the forget gate bias (bf) to be 1 and the input gate bias (bi) to be -1
+        # initialize the forget gate bias (bf) to be 1 and the tinput gate bias (bi) to be -1
         # Jozefowicz et al. 2015 "An Empirical Exploration of Recurrent Network Architectures"
         # Gers et al. 2000 "Learning to Forget: Continual Prediction with LSTM"
         #self.fc_f_x2f.bias = torch.nn.Parameter(torch.ones(dim_recurrent))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
@@ -720,7 +720,7 @@ class LSTM(nn.Module):# class LSTM inherits from class torch.nn.Module
         self.fc_f_x2f.bias = torch.nn.Parameter(torch.linspace(1,10,dim_recurrent))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         self.fc_i_x2i.bias = torch.nn.Parameter(torch.linspace(-1,-10,dim_recurrent))# https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/linear.py#L48-L52
         
-        # CAN DELETE: To replicate neural data the firing rates should decay. So initialize the forget gate bias (bf) to be 0 and the input gate bias (bi) to be 0. This is probably not a good idea computationally but might help the model look more like neural data.
+        # CAN DELETE: To replicate neural data the firing rates should decay. So initialize the forget gate bias (bf) to be 0 and the tinput gate bias (bi) to be 0. This is probably not a good idea computationally but might help the model look more like neural data.
         #self.fc_f_x2f.bias = torch.nn.Parameter(torch.zeros(dim_recurrent))
         #self.fc_i_x2i.bias = torch.nn.Parameter(torch.zeros(dim_recurrent))
         #------------------------------
@@ -740,9 +740,9 @@ class LSTM(nn.Module):# class LSTM inherits from class torch.nn.Module
             class retanh(nn.Module):# https://towardsdatascience.com/extending-pytorch-with-custom-activation-functions-2d8b065ef2fa
                 def __init__(self):
                     super().__init__()
-                def forward(self, input):
-                    #return torch.nn.functional.relu(torch.tanh(input))# method 1
-                    return input.tanh().clamp(min=0)# method 2   
+                def forward(self, tinput):
+                    #return torch.nn.functional.relu(torch.tanh(tinput))# method 1
+                    return tinput.tanh().clamp(min=0)# method 2   
             self.nonlinearity = retanh()
         '''
         '''
@@ -762,35 +762,35 @@ class LSTM(nn.Module):# class LSTM inherits from class torch.nn.Module
         
 
     # output y for all numT timesteps
-    # nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-    def forward(self, input, bhneverlearn):# input has size (numtrials, numT, dim_input), nn.Linear expects inputs of size (numtrials, *, dim_input) where * is optional and could be numT
-        if len(input.shape)==2:# if input has size (numT, dim_input) because there is only a single trial then add a singleton dimension
-            input = input[None,:,:]# (numtrials, numT, dim_input)
+    # nn.Linear expects tinputs of size (numtrials, *, dim_input) where * is optional and could be numT
+    def forward(self, tinput, bhneverlearn):# tinput has size (numtrials, numT, dim_input), nn.Linear expects tinputs of size (numtrials, *, dim_input) where * is optional and could be numT
+        if len(tinput.shape)==2:# if tinput has size (numT, dim_input) because there is only a single trial then add a singleton dimension
+            tinput = tinput[None,:,:]# (numtrials, numT, dim_input)
             bhneverlearn = bhneverlearn[None,:,:]# (numtrials, numT, dim_recurrent)
             
-        #numtrials, numT, dim_input = input.size()# METHOD 1
-        numtrials, numT, dim_input = input.shape# METHOD 2
+        #numtrials, numT, dim_input = tinput.size()# METHOD 1
+        numtrials, numT, dim_input = tinput.shape# METHOD 2
         #dim_recurrent = self.fc_i_x2i.weight.size(0)# Wix @ x + bi, METHOD 1
         dim_recurrent = self.fc_i_x2i.weight.shape[0]# Wix @ x + bi, METHOD 2
         if self.LEARN_c0h0:
             c = self.c0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for c, not different values for each trial
             h = self.h0.repeat(numtrials, 1)# (numtrials, dim_recurrent) tensor, all trials should have the same initial value for h, not different values for each trial
         else:
-            c = input.new_zeros(numtrials, dim_recurrent)# (numtrials, dim_recurrent) tensor, tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
-            h = input.new_zeros(numtrials, dim_recurrent)# (numtrials, dim_recurrent) tensor, tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
+            c = tinput.new_zeros(numtrials, dim_recurrent)# (numtrials, dim_recurrent) tensor, tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
+            h = tinput.new_zeros(numtrials, dim_recurrent)# (numtrials, dim_recurrent) tensor, tensor.new_zeros(size) returns a tensor of size size filled with 0. By default, the returned tensor has the same torch.dtype and torch.device as this tensor. 
         hstore = []# (numtrials, numT, dim_recurrent)
         for t in range(numT):# t=0,1,2,...,numT-1
-            i = torch.sigmoid(self.fc_i_x2i(input[:, t]) + self.fc_i_h2i(h))# input[:,t].size() is (numtrials, dim_input)
-            o = torch.sigmoid(self.fc_o_x2o(input[:, t]) + self.fc_o_h2o(h))# input[:,t].size() is (numtrials, dim_input)
-            f = torch.sigmoid(self.fc_f_x2f(input[:, t]) + self.fc_f_h2f(h))# input[:,t].size() is (numtrials, dim_input)
-            z =    torch.tanh(self.fc_z_x2z(input[:, t]) + self.fc_z_h2z(h))# input[:,t].size() is (numtrials, dim_input)
+            i = torch.sigmoid(self.fc_i_x2i(tinput[:, t]) + self.fc_i_h2i(h))# tinput[:,t].size() is (numtrials, dim_input)
+            o = torch.sigmoid(self.fc_o_x2o(tinput[:, t]) + self.fc_o_h2o(h))# tinput[:,t].size() is (numtrials, dim_input)
+            f = torch.sigmoid(self.fc_f_x2f(tinput[:, t]) + self.fc_f_h2f(h))# tinput[:,t].size() is (numtrials, dim_input)
+            z =    torch.tanh(self.fc_z_x2z(tinput[:, t]) + self.fc_z_h2z(h))# tinput[:,t].size() is (numtrials, dim_input)
             c = i*z + f*c
             #h = o*torch.tanh(c)
             #h = o*self.nonlinearity(c)  +  self.noiseamplitude*torch.randn(numtrials,dim_recurrent)
             #h = o*self.nonlinearity(c) + bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent)
             h = o*computef(c, self.nonlinearity) + bhneverlearn[:,t,:]# bhneverlearn has shape (numtrials, numT, dim_recurrent)
             hstore.append(h)# hstore += [h]
-        hstore = torch.stack(hstore,dim=1)# (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects inputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions  
+        hstore = torch.stack(hstore,dim=1)# (numtrials, numT, dim_recurrent), each appended h is stored in hstore[:,i,:], nn.Linear expects tinputs of size (numtrials, *, dim_recurrent) where * means any number of additional dimensions  
         return self.fc_y_h2y(hstore), hstore# (numtrials, numT, dim_output/dim_recurrent) 
     
     # to get the output we could
