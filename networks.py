@@ -109,8 +109,8 @@ def train_network(model, task, max_steps, batch_size=64,
         # 0(timepoint does not contribute to this term in the error function),
         # 1(timepoint contributes to this term in the error function)
         error_store[p] = error.item()
-        error_store_o1[p] = error_o1.item()
-        error_store_o2[p] = error_o2.item()
+        error_store_o1[p] = error_o1
+        error_store_o2[p] = error_o2
 
         # don't train on step 0, just store error
         if p == 0:
