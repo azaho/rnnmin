@@ -24,7 +24,7 @@ model = models.CTRNN(task=task, dim_recurrent=dim_recurrent)
 directory = f"t{task.name}_m{model.name}_dr{dim_recurrent}"
 if hold_zero:
     directory += "_hz"
-if reg_norm > 0:
+if reg_lam > 0 or reg_norm>0:
     directory += f"_l{reg_lam}_la{reg_norm}"
 if not simple_input:
     directory += "_nsi"

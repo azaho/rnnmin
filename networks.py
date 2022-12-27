@@ -38,6 +38,8 @@ def train_network(model, task, max_steps, batch_size=64,
     assert (type(optimizer) is not str), f"{optimizer} is not supported by train_network (train.py)"
 
     error_store = -700 * np.ones(max_steps + 1)
+    error_store_o1 = -700 * np.ones(max_steps + 1)
+    error_store_o2 = -700 * np.ones(max_steps + 1)
     # error_store[0] is the error before any parameter updates have been made,
     # error_store[j] is the error after j parameter updates
     gradient_norm_store = -700 * np.ones(max_steps + 1)
@@ -107,6 +109,8 @@ def train_network(model, task, max_steps, batch_size=64,
         # 0(timepoint does not contribute to this term in the error function),
         # 1(timepoint contributes to this term in the error function)
         error_store[p] = error.item()
+        error_store_o1[p] = error_o1.item()
+        error_store_o2[p] = error_o2.item()
 
         # don't train on step 0, just store error
         if p == 0:
@@ -185,6 +189,8 @@ def train_network(model, task, max_steps, batch_size=64,
 
     # get rid of the buffer (if training for less than max_steps)
     error_store = error_store[error_store != -700]
+    error_store_o1 = error_store_o1[error_store_o1 != -700]
+    error_store_o2 = error_store_o2[error_store_o2 != -700]
     gradient_norm_store = gradient_norm_store[gradient_norm_store != -700]
 
 
@@ -197,6 +203,8 @@ def train_network(model, task, max_steps, batch_size=64,
     }
     if store_errors:
         result["error_store"] = error_store
+        result["error_store_o1"] = error_store_o1
+        result["error_store_o2"] = error_store_o2
     if store_gradient_norms:
         result["gradient_norm_store"] = gradient_norm_store
 
