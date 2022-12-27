@@ -94,7 +94,8 @@ result = networks.train_network(model, task, max_steps=100,
                                 noise_amplitude=noise,
                                 regularization_lambda=reg_lam,
                                 regularization_norm=reg_norm if reg_norm>0 else None,
-                                clip_gradients=True)#3e-3)
+                                clip_gradients=True,
+                                scuffed_remove_connections=True)#3e-3)
 result["training_time"] = time.time() - start_time
 result["error_store"] = result["error_store"].tolist()
 

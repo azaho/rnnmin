@@ -33,7 +33,8 @@ def train_network(model, task, max_steps, batch_size=64,
                   stop_at_last_plateau=True,
                   regularization_lambda=0.1,
                   regularization_norm=None,
-                  second_noise=False):  # stop after final learning rate step if plateau reached again
+                  second_noise=False,
+                  scuffed_remove_connections=False):  # stop after final learning rate step if plateau reached again
     if optimizer == "Adam": optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # lr = 1e-3 default
     assert (type(optimizer) is not str), f"{optimizer} is not supported by train_network (train.py)"
 
@@ -138,10 +139,13 @@ def train_network(model, task, max_steps, batch_size=64,
         # Calling the step function on an Optimizer makes an update to its parameters
         optimizer.step()
 
-        # scuffed: remove r1-r2 connections
-        with torch.no_grad():
-            model.fc_h2ah.weight[:46, :][:, -45:] = 0
-            model.fc_h2ah.weight[-45:, :][:, :46] = 0
+        if scuffed_remove_connections:
+            # scuffed: remove r1-r2 connections
+            with torch.no_grad():
+                model.fc_h2ah.weight[:46, :][:, -45:] = 0
+                model.fc_h2ah.weight[-45:, :][:, :46] = 0
+                model.fc_h2y.weight[0:2, -45:] = 0
+                model.fc_h2y.weight[2:4, :46] = 0
 
         if store_gradient_norms:
             gradient = []  # store all gradients
