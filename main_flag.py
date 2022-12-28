@@ -101,7 +101,7 @@ result = networks.train_network(model, task, max_steps=100000,
                                 dir_save_parameters="data/"+directory,
                                 lr_max_steps=7,
                                 lr_step_at_plateau=False,
-                                learning_rate=5e-5,
+                                learning_rate=1e-3,
                                 start_at_best_network_after_lr_step=True,
                                 start_evaluating_plateau_after=2000,
                                 add_noise=(noise>0),
@@ -111,6 +111,8 @@ result = networks.train_network(model, task, max_steps=100000,
                                 clip_gradients=True, second_noise=second_noise)#3e-3)
 result["training_time"] = time.time() - start_time
 result["error_store"] = result["error_store"].tolist()
+result["error_store_o1"] = result["error_store_o1"].tolist()
+result["error_store_o2"] = result["error_store_o2"].tolist()
 
 #steps = range(0, len(result["error_store"]))#, int(len(result["error_store"])/2000))
 #result["error_store"] = {step: result["error_store"][step] for step in steps}
