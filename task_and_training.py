@@ -11,17 +11,21 @@ hyperparameters = {
     "random_string": "X",  # human-readable string used for random initialization (for reproducibility)
     "noise_amplitude": 0.1,  # normal noise with s.d. = noise_amplitude
     "optimizer": "Adam",  # options: Adam
-    "train_for_steps": 2000,
+    "train_for_steps": 10000,
     "save_network_every_steps": 1000,
     "note_error_every_steps": 100,  # only relevant if verbose is True
     "clip_gradients": True,  # limit gradient size (allows the network to train for a long time without diverging)
     "max_gradient_norm": 10,
-    "regularization": "L1",  # options: L1, L2, None
+    "regularization": "L2",  # options: L1, L2, None
     "regularization_lambda": 1e-4
 }
 hyperparameters["random_seed"] = abs(hash(hyperparameters["random_string"])) % 10**8  # random initialization seed (for reproducibility)
+if hyperparameters["regularization"] is None or hyperparameters["regularization"].lower() == "none":
+    hyperparameters["regularization_lambda"] = 0
+    hyperparameters["regularization"] = "None"
 
 task_parameters = {
+    "task_name": "2ORI2O",
     "input_orientation_units": 32,  # how many orientation-selective input units?
     "delay0_from": 40, "delay0_to": 60,  # range (inclusive) for lengths of variable delays (in timesteps)
     "delay1_from": 40, "delay1_to": 60,
@@ -33,6 +37,7 @@ task_parameters = {
 }
 
 model_parameters = {
+    "model_name": "CTRNN",
     "dim_input": task_parameters["dim_input"],
     "dim_output": task_parameters["dim_output"],
     "dim_recurrent": 100,
@@ -44,10 +49,17 @@ model_parameters = {
 
 additional_comments = [
     "Training criterion: MSE loss",
-    "Noise added only in the last delay before go cue"
+    #"Noise added only in the last delay before go cue"
+    "Noise added at every timestep of the trial"
 ]
 
-directory = "data/test/"  # needs to end with a slash
+# directory for results to be saved to
+directory = "data/"
+directory += f"{model_parameters['model_name']}_{task_parameters['task_name']}"
+directory += f"_dr{model_parameters['dim_recurrent']}_n{hyperparameters['noise_amplitude']}"
+directory += f"_la{model_parameters['dim_recurrent']}"
+directory += f"_r{hyperparameters['random_string']}"
+directory += "/"  # needs to end with a slash
 
 random.seed(hyperparameters["random_seed"])
 torch.manual_seed(hyperparameters["random_seed"])
@@ -65,6 +77,7 @@ class Task:
         total_t = noise_to_t + task_parameters["show_cue_for"]
         mask = torch.zeros(total_t)
         mask[noise_from_t:noise_to_t] = 1
+        mask[:] = 1
         return mask
 
     @staticmethod

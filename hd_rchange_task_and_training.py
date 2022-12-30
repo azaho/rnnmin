@@ -7,7 +7,7 @@ verbose = True  # print info in console?
 
 hyperparameters = {
     "batch_size": 96,
-    "learning_rate": 1e-3,
+    "learning_rate": 1e-4,
     "random_string": "X",  # human-readable string used for random initialization (for reproducibility)
     "noise_amplitude": 0.1,  # normal noise with s.d. = noise_amplitude
     "optimizer": "Adam",  # options: Adam
@@ -15,7 +15,7 @@ hyperparameters = {
     "save_network_every_steps": 1000,
     "note_error_every_steps": 10,  # only relevant if verbose is True
     "clip_gradients": True,  # limit gradient size (allows the network to train for a long time without diverging)
-    "max_gradient_norm": 10,
+    "max_gradient_norm": 1,
     "regularization": "None",  # options: L1, L2, None
     "regularization_lambda": 1e-4
 }
@@ -50,7 +50,7 @@ additional_comments = [
 directory = "data/test/"  # needs to end with a slash
 
 random.seed(1337)
-r1_pref_shifts = [random.randint(-60, 60) for i in range(45)]
+r1_pref_shifts = [random.randint(-60, 60)*1 for i in range(45)]
 
 random.seed(hyperparameters["random_seed"])
 torch.manual_seed(hyperparameters["random_seed"])
@@ -247,6 +247,9 @@ class Model(torch.nn.Module):
 
         #torch.nn.Parameter(torch.tensor(0.15))
         self.fc_h2y = nn.Linear(dim_recurrent, dim_output, bias=model_parameters["output_bias"])  # y = W_h_y @ h + b_y
+        for param in self.fc_h2y.parameters():
+            param.requires_grad = True
+
         with torch.no_grad():
             R1_N = 45
             R2_N = 45
@@ -262,6 +265,7 @@ class Model(torch.nn.Module):
                                           62., 66., 71., 74., 79., 83., 87., 92., 96., 101., 105., 108.,
                                           112., 116., 120., 124., 128., 132., 135., 139., 142., 146., 150., 153.,
                                           158., 162., 167., 172., 177., 1., 5., 10., 13.])
+            #R1_pref_fixed = R1_pref
             self.fc_h2y.weight[1, R1_i] = torch.cos(2 * (R1_pref_fixed) / 180 * np.pi) * 0.0725
             self.fc_h2y.weight[0, R1_i] = torch.sin(2 * (R1_pref_fixed) / 180 * np.pi) * 0.0725
             self.fc_h2y.weight[3, R2_i] = torch.cos(2 * R2_pref / 180 * np.pi) * 0.0725
@@ -277,15 +281,15 @@ class Model(torch.nn.Module):
         self.dt_b_m = -0.26
 
         self.in_r_m = torch.nn.Parameter(torch.tensor([0.2]), requires_grad=False)
-        self.in_dt_m = torch.nn.Parameter(torch.tensor([0.3]))
+        self.in_dt_m = torch.nn.Parameter(torch.tensor([0.3]), requires_grad=False)
         self.r_r_m = torch.nn.Parameter(torch.tensor([0.2]))
-        self.r1_dt_m = torch.nn.Parameter(torch.tensor([-0.1]))
-        self.dt_r2_m = torch.nn.Parameter(torch.tensor([-0.5]))
+        self.r1_dt_m = torch.nn.Parameter(torch.tensor([-0.1]), requires_grad=False)
+        self.dt_r2_m = torch.nn.Parameter(torch.tensor([-0.5]), requires_grad=False)
         self.r1_b_m = torch.nn.Parameter(torch.tensor([-0.06]))
-        self.r2_b_m = torch.nn.Parameter(torch.tensor([-0.1]))
-        self.dt_b_m = torch.nn.Parameter(torch.tensor([-0.26]))
+        self.r2_b_m = torch.nn.Parameter(torch.tensor([-0.1]), requires_grad=False)
+        self.dt_b_m = torch.nn.Parameter(torch.tensor([-0.26]), requires_grad=False)
 
-        self.r1_pref_shifts = torch.nn.Parameter(torch.tensor(r1_pref_shifts, dtype=float))
+        self.r1_pref_shifts = torch.nn.Parameter(torch.tensor(r1_pref_shifts, dtype=float), requires_grad=False)
 
     # output y and recurrent unit activations for all trial timesteps
     # input has shape (batch_size, total_time, dim_input) or (total_time, dim_input)
@@ -442,7 +446,7 @@ def train_network(model):
         error = torch.sum((output[output_mask == 1] - target[output_mask == 1]) ** 2, dim=0) / torch.sum(output_mask == 1)
         error_o1 = (error[0] + error[1]).item()
         error_o2 = (error[2] + error[3]).item()
-        error = torch.sum(error)
+        error = error[0] + error[1]#error_o1#torch.sum(error)
         if regularization_norm == 1:
             for param in model.parameters():
                 if param.requires_grad is True:
@@ -477,6 +481,7 @@ def train_network(model):
         optimizer.step()
 
         with torch.no_grad():
+            #pass
             model.fc_h2y.weight[0, 45:] = 0
             model.fc_h2y.weight[1, 45:] = 0
             model.fc_h2y.weight[2, :46] = 0
