@@ -8,7 +8,7 @@ verbose = True  # print info in console?
 hyperparameters = {
     "batch_size": 64,
     "learning_rate": 1e-3,
-    "random_string": "X",  # human-readable string used for random initialization (for reproducibility)
+    "random_string": "Y",  # human-readable string used for random initialization (for reproducibility)
     "noise_amplitude": 0.1,  # normal noise with s.d. = noise_amplitude
     "optimizer": "Adam",  # options: Adam
     "train_for_steps": 100000,
@@ -73,6 +73,7 @@ if use_cuda:
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 if verbose:
     print(f"Using {'GPU' if use_cuda else 'CPU'}")
+
 
 class Task:
     # outputs mask defining which timesteps noise should be applied to
