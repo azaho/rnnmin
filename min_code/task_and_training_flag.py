@@ -58,7 +58,7 @@ additional_comments = [
 directory = "data/"
 directory += f"{model_parameters['model_name']}_{task_parameters['task_name']}"
 directory += f"_dr{model_parameters['dim_recurrent']}_n{hyperparameters['noise_amplitude']}"
-directory += f"_la{model_parameters['dim_recurrent']}"
+directory += f"_la{hyperparameters['regularization_lambda']}"
 directory += f"_r{hyperparameters['random_string']}"
 #directory += "_sn"
 directory += "/"  # needs to end with a slash
@@ -67,6 +67,12 @@ random.seed(hyperparameters["random_seed"])
 torch.manual_seed(hyperparameters["random_seed"])
 np.random.seed(hyperparameters["random_seed"])
 
+# use GPU if available
+use_cuda = torch.cuda.is_available()
+if use_cuda:
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+if verbose:
+    print(f"Using {'GPU' if use_cuda else 'CPU'}")
 
 class Task:
     # outputs mask defining which timesteps noise should be applied to
