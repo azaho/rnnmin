@@ -412,7 +412,7 @@ def train_network(model):
         gradient = []  # store all gradients
         for param in model.parameters():  # model.parameters include those defined in __init__ even if they are not used in forward pass
             if param.requires_grad is True:  # model.parameters include those defined in __init__ even if param.requires_grad is False (in this case param.grad is None)
-                gradient.append(param.grad.detach().flatten().numpy())
+                gradient.append(param.grad.detach().flatten().cpu().numpy())
         gradient = np.concatenate(gradient)
         gradient_norm_store[p] = np.sqrt(np.sum(gradient ** 2)).item()
         # note running error in console
