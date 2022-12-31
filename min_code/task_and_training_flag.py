@@ -8,7 +8,7 @@ verbose = True  # print info in console?
 hyperparameters = {
     "batch_size": 64,
     "learning_rate": 1e-3,
-    "random_string": "Y",  # human-readable string used for random initialization (for reproducibility)
+    "random_string": "Yc",  # human-readable string used for random initialization (for reproducibility)
     "noise_amplitude": 0.1,  # normal noise with s.d. = noise_amplitude
     "optimizer": "Adam",  # options: Adam
     "train_for_steps": 100000,
@@ -67,12 +67,6 @@ random.seed(hyperparameters["random_seed"])
 torch.manual_seed(hyperparameters["random_seed"])
 np.random.seed(hyperparameters["random_seed"])
 
-# use GPU if available
-use_cuda = torch.cuda.is_available()
-if use_cuda:
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
-if verbose:
-    print(f"Using {'GPU' if use_cuda else 'CPU'}")
 
 class Task:
     # outputs mask defining which timesteps noise should be applied to
@@ -438,6 +432,14 @@ def train_network(model):
 
 
 if __name__ == "__main__":
+    # use GPU if available
+    use_cuda = torch.cuda.is_available()
+    use_cuda = False
+    if use_cuda:
+        torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    if verbose:
+        print(f"Using {'GPU' if use_cuda else 'CPU'}")
+
     # train the network and save weights
     model = Model()
     error_store, error_store_o1, error_store_o2, gradient_norm_store = train_network(model)
