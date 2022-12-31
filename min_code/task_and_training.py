@@ -29,7 +29,7 @@ task_parameters = {
     "input_orientation_units": 32,  # how many orientation-selective input units?
     "delay0_from": 40, "delay0_to": 60,  # range (inclusive) for lengths of variable delays (in timesteps)
     "delay1_from": 40, "delay1_to": 60,
-    "delay2_from": 80, "delay2_to": 120,
+    "delay2_from": 40, "delay2_to": 60,
     "show_orientation_for": 10,  # in timesteps
     "show_cue_for": 100,  # in timesteps
     "dim_input": 32 + 1,  # plus one input for go cue signal
